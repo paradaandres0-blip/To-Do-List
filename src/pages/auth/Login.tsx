@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, CheckSquare } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff, CheckSquare } from 'lucide-react';
 
-// Tipado para los datos del formulario
 interface LoginFormInputs {
   email: string;
   password: string;
@@ -10,100 +10,122 @@ interface LoginFormInputs {
 
 export const Login = () => {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormInputs>();
 
-  // Función simulada de inicio de sesión
+  // Credenciales de prueba: admin@taskedu.com / admin123
   const onSubmit = async (data: LoginFormInputs) => {
-    console.log('Datos enviados:', data);
-    // Simulamos un retraso de red de 1 segundo
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    // Redirigimos al dashboard tras el "login" exitoso
-    navigate('/dashboard', { replace: true });
+    if (data.email === 'admin@taskedu.com' && data.password === 'admin123') {
+      navigate('/dashboard', { replace: true });
+    } else {
+      alert('Credenciales incorrectas.\nUsa: admin@taskedu.com / admin123');
+    }
   };
 
   return (
-    <div className="w-full flex flex-col justify-center">
-      {/* Encabezado del Formulario */}
-      <div className="mb-10 text-center lg:text-left">
-        <div className="flex items-center justify-center lg:justify-start gap-2 text-dark font-bold text-2xl tracking-tight mb-6">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-saas-md">
-            <CheckSquare size={24} strokeWidth={2.5} />
-          </div>
-          <span>TaskEdu</span>
+    <div className="w-full flex flex-col">
+
+      {/* ── Logo ── */}
+      <div className="flex items-center gap-2.5 mb-10">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}
+        >
+          <CheckSquare size={22} className="text-white" strokeWidth={2.5} />
         </div>
-        <h1 className="text-3xl font-bold text-dark mb-2">Bienvenido de nuevo</h1>
-        <p className="text-dark-gray/70">
+        <span className="text-white font-bold text-xl tracking-tight">TaskEdu</span>
+      </div>
+
+      {/* ── Encabezado ── */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">
+          Bienvenido de nuevo
+        </h1>
+        <p className="text-slate-400 text-sm leading-relaxed">
           Ingresa tus credenciales para acceder a tu espacio de trabajo.
         </p>
       </div>
 
-      {/* Formulario con React Hook Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        
-        {/* Campo Email */}
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-dark-gray mb-1.5">
-            Correo Electrónico
+      {/* ── Formulario ── */}
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+
+        {/* Email */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="text-sm font-medium text-slate-300">
+            Correo electrónico
           </label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail size={18} className="text-light-gray drop-shadow-sm" />
-            </div>
+            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500">
+              <Mail size={17} />
+            </span>
             <input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="admin@taskedu.com"
-              className={`block w-full pl-10 pr-3 py-2.5 border rounded-lg leading-5 bg-background text-dark placeholder-light-gray focus:outline-none focus:ring-2 focus:border-primary transition-colors sm:text-sm ${
-                errors.email ? 'border-red-500 focus:ring-red-200' : 'border-light-gray/60 focus:ring-primary/20'
-              }`}
-              {...register('email', { 
+              className={`input-dark w-full rounded-xl pl-10 pr-4 py-3 text-sm ${errors.email ? 'error' : ''}`}
+              {...register('email', {
                 required: 'El correo es obligatorio',
                 pattern: {
                   value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
-                  message: 'Formato de correo inválido'
-                }
+                  message: 'Formato de correo inválido',
+                },
               })}
             />
           </div>
           {errors.email && (
-            <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.email.message}</p>
+            <p className="text-xs text-red-400 font-medium mt-0.5">{errors.email.message}</p>
           )}
         </div>
 
-        {/* Campo Contraseña */}
-        <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label htmlFor="password" className="block text-sm font-medium text-dark-gray">
+        {/* Contraseña */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="text-sm font-medium text-slate-300">
               Contraseña
             </label>
-            <a href="#" className="text-sm font-medium text-primary hover:text-primary-hover transition-colors">
+            <a
+              href="#"
+              className="text-xs font-medium transition-colors"
+              style={{ color: '#a78bfa' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#7c3aed')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#a78bfa')}
+            >
               ¿Olvidaste tu contraseña?
             </a>
           </div>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock size={18} className="text-light-gray drop-shadow-sm" />
-            </div>
+            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500">
+              <Lock size={17} />
+            </span>
             <input
               id="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               placeholder="••••••••"
-              className={`block w-full pl-10 pr-3 py-2.5 border rounded-lg leading-5 bg-background text-dark placeholder-light-gray focus:outline-none focus:ring-2 focus:border-primary transition-colors sm:text-sm ${
-                errors.password ? 'border-red-500 focus:ring-red-200' : 'border-light-gray/60 focus:ring-primary/20'
-              }`}
-              {...register('password', { 
+              className={`input-dark w-full rounded-xl pl-10 pr-11 py-3 text-sm ${errors.password ? 'error' : ''}`}
+              {...register('password', {
                 required: 'La contraseña es obligatoria',
-                minLength: { value: 6, message: 'Mínimo 6 caracteres' }
+                minLength: { value: 6, message: 'Mínimo 6 caracteres' },
               })}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
           </div>
           {errors.password && (
-            <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.password.message}</p>
+            <p className="text-xs text-red-400 font-medium mt-0.5">{errors.password.message}</p>
           )}
         </div>
 
@@ -111,24 +133,101 @@ export const Login = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-saas-sm mt-4"
+          className="btn-glow relative w-full flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-sm font-semibold text-white transition-all duration-300 mt-2 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden group"
+          style={{
+            background: isSubmitting
+              ? 'linear-gradient(135deg, #5b21b6, #1d4ed8)'
+              : 'linear-gradient(135deg, #7c3aed, #2563eb)',
+          }}
         >
+          {/* Shine effect */}
+          <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%)',
+            }}
+          />
+
           {isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Ingresando...
-            </span>
+              <span>Ingresando...</span>
+            </>
           ) : (
             <>
-              Ingresar al sistema
-              <ArrowRight size={18} />
+              <span>Ingresar al sistema</span>
+              <ArrowRight size={17} className="transition-transform duration-200 group-hover:translate-x-1" />
             </>
           )}
         </button>
       </form>
+
+      {/* ── Credenciales de prueba ── */}
+      <div
+        className="mt-4 rounded-xl px-4 py-3 text-xs text-slate-400"
+        style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}
+      >
+        <p className="font-semibold text-purple-300 mb-1">🔑 Credenciales de prueba</p>
+        <p>Email: <span className="text-slate-200 font-mono">admin@taskedu.com</span></p>
+        <p>Contraseña: <span className="text-slate-200 font-mono">admin123</span></p>
+      </div>
+
+      {/* ── Divisor ── */}
+      <div className="flex items-center gap-3 my-6">
+        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+        <span className="text-xs text-slate-600 font-medium">o continúa con</span>
+        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      </div>
+
+      {/* ── Botones Sociales ── */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Google */}
+        <button
+          type="button"
+          className="glass flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 hover:border-white/20"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/>
+            <path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/>
+            <path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/>
+            <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067Z"/>
+          </svg>
+          Google
+        </button>
+
+        {/* Microsoft */}
+        <button
+          type="button"
+          className="glass flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 hover:border-white/20"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#F25022" d="M1 1h10v10H1z"/>
+            <path fill="#00A4EF" d="M13 1h10v10H13z"/>
+            <path fill="#7FBA00" d="M1 13h10v10H1z"/>
+            <path fill="#FFB900" d="M13 13h10v10H13z"/>
+          </svg>
+          Microsoft
+        </button>
+      </div>
+
+      {/* ── Footer ── */}
+      <p className="text-center text-xs text-slate-600 mt-8">
+        ¿No tienes cuenta?{' '}
+        <a
+          href="#"
+          className="font-semibold transition-colors"
+          style={{ color: '#a78bfa' }}
+        >
+          Solicitar acceso
+        </a>
+      </p>
     </div>
   );
 };
