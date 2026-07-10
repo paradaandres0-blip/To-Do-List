@@ -1,35 +1,26 @@
 import { Outlet } from 'react-router-dom';
-// Nota: Comentaremos las importaciones de Sidebar y Navbar hasta crearlos en los siguientes pasos
-// import { Sidebar } from '../components/layout/Sidebar/Sidebar';
-// import { Navbar } from '../components/layout/Navbar/Navbar';
+import Sidebar from '../componets/layout/Sidebar/Sidebar';
+import Navbar  from '../componets/layout/Navbar/Navbar';
 
 export const DashboardLayout = () => {
   return (
-    <div className="flex h-screen bg-background overflow-hidden text-dark">
-      {/* Sidebar - Menú Lateral */}
-      <aside className="hidden md:flex md:flex-shrink-0">
-        {/* <Sidebar /> */}
-        {/* Placeholder temporal */}
-        <div className="w-64 bg-dark-gray text-white flex items-center justify-center border-r border-light-gray/20">
-          Sidebar Placeholder
-        </div>
+    <div className="flex h-screen overflow-hidden" style={{ background: '#0f172a' }}>
+
+      {/* ── Sidebar ── */}
+      <aside className="hidden md:flex md:flex-shrink-0 h-full">
+        <Sidebar />
       </aside>
 
-      {/* Contenedor Principal (Navbar + Contenido) */}
+      {/* ── Área principal ── */}
       <div className="flex-1 flex flex-col w-0 overflow-hidden">
-        {/* Navbar Superior */}
-        <header className="flex-shrink-0">
-          {/* <Navbar /> */}
-          {/* Placeholder temporal */}
-          <div className="h-16 bg-white border-b border-light-gray/50 flex items-center px-4 shadow-saas-sm">
-            Navbar Placeholder
-          </div>
-        </header>
+        <Navbar />
 
-        {/* Área de Contenido Principal (Scrollable) */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-6 px-4 sm:px-6 md:px-8">
-            {/* Aquí se inyectarán las páginas: Dashboard, Courses, Tasks, etc. */}
+        {/* Contenido scrollable */}
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{ background: '#f8fafc' }}
+        >
+          <div className="py-8 px-6 md:px-8 max-w-7xl mx-auto">
             <Outlet />
           </div>
         </main>
