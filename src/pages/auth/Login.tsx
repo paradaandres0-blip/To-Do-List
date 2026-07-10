@@ -11,6 +11,7 @@ interface LoginFormInputs {
 export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const {
     register,
@@ -18,13 +19,14 @@ export const Login = () => {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormInputs>();
 
-  // Credenciales de prueba: admin@taskedu.com / admin123
   const onSubmit = async (data: LoginFormInputs) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    if (data.email === 'admin@taskedu.com' && data.password === 'admin123') {
+    setLoginError('');
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    // Acepta cualquier email/contraseña válidos (mínimo 6 chars)
+    if (data.email && data.password.length >= 6) {
       navigate('/dashboard', { replace: true });
     } else {
-      alert('Credenciales incorrectas.\nUsa: admin@taskedu.com / admin123');
+      setLoginError('Contraseña muy corta. Mínimo 6 caracteres.');
     }
   };
 
@@ -129,6 +131,14 @@ export const Login = () => {
           )}
         </div>
 
+        {/* Error general */}
+        {loginError && (
+          <div className="rounded-xl px-4 py-3 text-xs font-medium text-red-300"
+            style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}>
+            {loginError}
+          </div>
+        )}
+
         {/* Botón Submit */}
         <button
           type="submit"
@@ -168,16 +178,6 @@ export const Login = () => {
           )}
         </button>
       </form>
-
-      {/* ── Credenciales de prueba ── */}
-      <div
-        className="mt-4 rounded-xl px-4 py-3 text-xs text-slate-400"
-        style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}
-      >
-        <p className="font-semibold text-purple-300 mb-1">🔑 Credenciales de prueba</p>
-        <p>Email: <span className="text-slate-200 font-mono">admin@taskedu.com</span></p>
-        <p>Contraseña: <span className="text-slate-200 font-mono">admin123</span></p>
-      </div>
 
       {/* ── Divisor ── */}
       <div className="flex items-center gap-3 my-6">
