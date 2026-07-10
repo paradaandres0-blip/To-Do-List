@@ -1,10 +1,10 @@
 import { User, Mail, Phone, MapPin, Shield, Edit3, Camera } from 'lucide-react';
 
 const ACTIVITY = [
-  { action: 'Aprobó la tarea "Diseño de BD"',    time: 'Hace 2 horas'  },
-  { action: 'Creó el curso "Frontend React"',    time: 'Hace 5 horas'  },
-  { action: 'Asignó grupo "Cohorte 2026"',       time: 'Hace 1 día'    },
-  { action: 'Actualizó módulo "Arquitectura"',   time: 'Hace 2 días'   },
+  { action: 'Aprobó sesión "Rutina de Fuerza Nivel 2"',  time: 'Hace 2 horas'  },
+  { action: 'Creó programa "Nutrición Deportiva Pro"',   time: 'Hace 5 horas'  },
+  { action: 'Asignó grupo "Cohorte Fitness 2026"',       time: 'Hace 1 día'    },
+  { action: 'Actualizó módulo "Mindfulness Avanzado"',   time: 'Hace 2 días'   },
 ];
 
 export const Profile = () => {

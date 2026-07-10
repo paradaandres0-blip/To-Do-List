@@ -6,32 +6,32 @@ import {
 
 const STATS = [
   {
-    title: 'Usuarios Activos',
-    value: '1,248',
+    title: 'Alumnos Activos',
+    value: '2,148',
     icon: Users,
     trend: '+12%',
     gradientFrom: '#7c3aed',
     gradientTo: '#2563eb',
   },
   {
-    title: 'Cursos Terminados',
-    value: '342',
+    title: 'Programas Activos',
+    value: '58',
     icon: BookOpen,
-    trend: '+5%',
+    trend: '+8%',
     gradientFrom: '#2563eb',
     gradientTo: '#0ea5e9',
   },
   {
-    title: 'Tareas Aprobadas',
-    value: '8,942',
+    title: 'Sesiones Completadas',
+    value: '12,430',
     icon: CheckCircle2,
     trend: '+22%',
     gradientFrom: '#059669',
     gradientTo: '#10b981',
   },
   {
-    title: 'Productividad',
-    value: '94%',
+    title: 'Satisfacción',
+    value: '98%',
     icon: TrendingUp,
     trend: '+2%',
     gradientFrom: '#d97706',
@@ -40,10 +40,10 @@ const STATS = [
 ];
 
 const RECENT_TASKS = [
-  { id: 1, title: 'Implementar Auth',       module: 'Backend Node.js',  status: 'En revisión',    time: 'Hace 2 horas' },
-  { id: 2, title: 'Diseño de Base de Datos', module: 'Arquitectura',     status: 'Aprobada',       time: 'Hace 5 horas' },
-  { id: 3, title: 'Maquetación UI',          module: 'Frontend React',   status: 'En desarrollo',  time: 'Hace 1 día'   },
-  { id: 4, title: 'Testing API REST',        module: 'QA',               status: 'En revisión',    time: 'Hace 2 días'  },
+  { id: 1, title: 'Plan Nutricional Semana 3',   module: 'Nutrición Avanzada',   status: 'En revisión',    time: 'Hace 2 horas' },
+  { id: 2, title: 'Rutina de Fuerza — Nivel 2',  module: 'Entrenamiento Físico', status: 'Aprobada',       time: 'Hace 5 horas' },
+  { id: 3, title: 'Meditación Guiada 10 min',    module: 'Bienestar Mental',     status: 'En desarrollo',  time: 'Hace 1 día'   },
+  { id: 4, title: 'Evaluación de Composición',   module: 'Seguimiento Corporal', status: 'En revisión',    time: 'Hace 2 días'  },
 ];
 
 const statusStyle: Record<string, string> = {
@@ -66,10 +66,10 @@ export const Dashboard = () => {
       <motion.div {...fadeUp(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
-            Dashboard General
+            Dashboard — WorkFlow Academy
           </h1>
           <p className="text-sm mt-1" style={{ color: '#64748b' }}>
-            Resumen de actividad y métricas de la organización.
+            Resumen de programas, alumnos y sesiones activas.
           </p>
         </div>
         <button
@@ -139,22 +139,42 @@ export const Dashboard = () => {
             </button>
           </div>
 
-          {/* Placeholder gráfica */}
-          <div
-            className="w-full h-56 rounded-xl flex flex-col items-center justify-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg,rgba(124,58,237,0.04),rgba(37,99,235,0.04))',
-              border: '2px dashed rgba(124,58,237,0.15)',
-            }}
-          >
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.12),rgba(37,99,235,0.08))' }}
-            >
-              <TrendingUp size={24} style={{ color: '#7c3aed' }} />
-            </div>
-            <p className="text-sm font-semibold" style={{ color: '#475569' }}>Gráfica de rendimiento</p>
-            <p className="text-xs" style={{ color: '#94a3b8' }}>Próximamente con Recharts</p>
+          {/* Gráfica SVG de barras */}
+          <div className="w-full h-56 relative">
+            <svg viewBox="0 0 500 180" className="w-full h-full" preserveAspectRatio="none">
+              {/* Grid lines */}
+              {[0,1,2,3].map((i) => (
+                <line key={i} x1="40" y1={10 + i*45} x2="490" y2={10 + i*45}
+                  stroke="#f1f5f9" strokeWidth="1" />
+              ))}
+              {/* Barras */}
+              {[
+                { x: 60,  h: 90,  label: 'Ene', color: '#7c3aed' },
+                { x: 120, h: 120, label: 'Feb', color: '#7c3aed' },
+                { x: 180, h: 75,  label: 'Mar', color: '#7c3aed' },
+                { x: 240, h: 145, label: 'Abr', color: '#7c3aed' },
+                { x: 300, h: 100, label: 'May', color: '#2563eb' },
+                { x: 360, h: 130, label: 'Jun', color: '#2563eb' },
+                { x: 420, h: 160, label: 'Jul', color: '#2563eb' },
+              ].map((b) => (
+                <g key={b.label}>
+                  <rect x={b.x} y={170 - b.h} width="35" height={b.h} rx="6"
+                    fill={`url(#grad-${b.color.replace('#','')})`} opacity="0.85" />
+                  <text x={b.x + 17} y="178" textAnchor="middle" fontSize="9" fill="#94a3b8">{b.label}</text>
+                </g>
+              ))}
+              {/* Gradientes */}
+              <defs>
+                <linearGradient id="grad-7c3aed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7c3aed" />
+                  <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.6" />
+                </linearGradient>
+                <linearGradient id="grad-2563eb" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.6" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
 
           {/* Mini stats row */}
