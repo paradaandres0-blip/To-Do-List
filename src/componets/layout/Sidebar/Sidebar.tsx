@@ -1,16 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  CheckSquare, LayoutDashboard, BookOpen, Users, User,
+  Dumbbell, LayoutDashboard, BookOpen, Users, User,
   ClipboardList, Building2, BarChart2, LogOut, Settings, Layers,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'     },
-  { to: '/courses',       icon: BookOpen,         label: 'Cursos'        },
+  { to: '/courses',       icon: BookOpen,         label: 'Programas'     },
   { to: '/modules',       icon: Layers,           label: 'Módulos'       },
-  { to: '/tasks',         icon: ClipboardList,    label: 'Tareas'        },
+  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones'      },
   { to: '/groups',        icon: Users,            label: 'Grupos'        },
-  { to: '/organizations', icon: Building2,        label: 'Organizaciones'},
+  { to: '/organizations', icon: Building2,        label: 'Centros'       },
   { to: '/reports',       icon: BarChart2,        label: 'Reportes'      },
 ];
 
@@ -28,9 +28,12 @@ export default function Sidebar() {
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}
         >
-          <CheckSquare size={20} className="text-white" strokeWidth={2.5} />
+          <Dumbbell size={18} className="text-white" strokeWidth={2.5} />
         </div>
-        <span className="text-white font-bold text-lg tracking-tight">TaskEdu</span>
+        <div>
+          <span className="text-white font-extrabold text-sm tracking-tight leading-tight block">WorkFlow</span>
+          <span className="text-purple-400 font-bold text-xs tracking-widest uppercase leading-tight block">Academy</span>
+        </div>
       </div>
 
       {/* ── Navegación ── */}

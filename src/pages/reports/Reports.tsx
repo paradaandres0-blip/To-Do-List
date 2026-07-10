@@ -1,18 +1,18 @@
 import { BarChart2, TrendingUp, Users, BookOpen, CheckCircle2, Download } from 'lucide-react';
 
 const METRICS = [
-  { label: 'Tasa de Aprobación',  value: '87%',   sub: '+4% este mes',   icon: CheckCircle2, from: '#7c3aed', to: '#2563eb' },
-  { label: 'Estudiantes Activos', value: '1,248',  sub: '+12% este mes',  icon: Users,        from: '#2563eb', to: '#0ea5e9' },
-  { label: 'Cursos Completados',  value: '342',    sub: '+5% este mes',   icon: BookOpen,     from: '#059669', to: '#10b981' },
-  { label: 'Horas Totales',       value: '9,840',  sub: '+18% este mes',  icon: TrendingUp,   from: '#d97706', to: '#f59e0b' },
+  { label: 'Tasa de Completado',  value: '87%',   sub: '+4% este mes',   icon: CheckCircle2, from: '#7c3aed', to: '#2563eb' },
+  { label: 'Alumnos Activos',     value: '2,148',  sub: '+12% este mes',  icon: Users,        from: '#2563eb', to: '#0ea5e9' },
+  { label: 'Sesiones Realizadas', value: '12,430', sub: '+22% este mes',  icon: BookOpen,     from: '#059669', to: '#10b981' },
+  { label: 'Horas de Programa',   value: '4,840',  sub: '+18% este mes',  icon: TrendingUp,   from: '#d97706', to: '#f59e0b' },
 ];
 
 const COURSE_PROGRESS = [
-  { name: 'Frontend React',  pct: 82, color: '#7c3aed' },
-  { name: 'Backend Node.js', pct: 67, color: '#2563eb' },
-  { name: 'Arquitectura',    pct: 54, color: '#0ea5e9' },
-  { name: 'QA & Testing',    pct: 40, color: '#10b981' },
-  { name: 'DevOps',          pct: 28, color: '#f59e0b' },
+  { name: 'Entrenamiento Funcional', pct: 82, color: '#7c3aed' },
+  { name: 'Nutrición Deportiva',     pct: 67, color: '#2563eb' },
+  { name: 'Mindfulness',             pct: 74, color: '#0ea5e9' },
+  { name: 'Pérdida de Peso',         pct: 55, color: '#10b981' },
+  { name: 'Bienestar Mental',        pct: 40, color: '#f59e0b' },
 ];
 
 export const Reports = () => {

@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { ClipboardList, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Circle } from 'lucide-react';
 
 const TASKS = [
-  { id: '1', title: 'Implementar autenticación JWT',      course: 'Backend Node.js',   due: '15 Jul', priority: 'Alta',   status: 'En revisión'   },
-  { id: '2', title: 'Diseño de base de datos relacional', course: 'Arquitectura',      due: '18 Jul', priority: 'Alta',   status: 'Aprobada'      },
-  { id: '3', title: 'Maquetación del Dashboard UI',       course: 'Frontend React',    due: '20 Jul', priority: 'Media',  status: 'En desarrollo' },
-  { id: '4', title: 'Testing unitario de componentes',    course: 'QA & Testing',      due: '22 Jul', priority: 'Media',  status: 'Pendiente'     },
-  { id: '5', title: 'Documentación de API REST',          course: 'Backend Node.js',   due: '25 Jul', priority: 'Baja',   status: 'Pendiente'     },
-  { id: '6', title: 'Integración con servicios externos', course: 'Arquitectura',      due: '28 Jul', priority: 'Alta',   status: 'En desarrollo' },
+  { id: '1', title: 'Plan Nutricional Semana 3',       course: 'Nutrición Avanzada',   due: '15 Jul', priority: 'Alta',   status: 'En revisión'   },
+  { id: '2', title: 'Rutina de Fuerza Nivel 2',        course: 'Entrenamiento Físico', due: '18 Jul', priority: 'Alta',   status: 'Aprobada'      },
+  { id: '3', title: 'Sesión de Meditación 10 min',     course: 'Bienestar Mental',     due: '20 Jul', priority: 'Media',  status: 'En desarrollo' },
+  { id: '4', title: 'Evaluación de Composición Corp.', course: 'Seguimiento Corporal', due: '22 Jul', priority: 'Media',  status: 'Pendiente'     },
+  { id: '5', title: 'Dieta Anti-inflamatoria',         course: 'Nutrición Básica',     due: '25 Jul', priority: 'Baja',   status: 'Pendiente'     },
+  { id: '6', title: 'Técnicas de Respiración',         course: 'Bienestar Mental',     due: '28 Jul', priority: 'Alta',   status: 'En desarrollo' },
 ];
 
 const statusIcon: Record<string, React.ReactElement> = {

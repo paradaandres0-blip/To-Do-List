@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form';
 import { Modal } from '../../componets/common/Modal/Modal';
 
 const INITIAL_GROUPS = [
-  { id: '1', name: 'Cohorte 2026 - Desarrollo Web',      org: 'Universidad Tecnológica', mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso'      },
-  { id: '2', name: 'Fundamentos de Python',               org: 'Academia CodeCraft',      mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones' },
-  { id: '3', name: 'Ingeniería de Software Avanzada',     org: 'Universidad Tecnológica', mentor: 'Julián Parada',  students: 32,  status: 'En curso'      },
-  { id: '4', name: 'Diseño UX/UI Inicial',                org: 'Instituto de Desarrollo', mentor: 'Laura Silva',    students: 25,  status: 'Finalizado'    },
+  { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso'      },
+  { id: '2', name: 'Programa Nutrición Pro',        org: 'WorkFlow Academy',        mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones' },
+  { id: '3', name: 'Bienestar Mental Avanzado',     org: 'WorkFlow Academy',        mentor: 'Julián Parada',  students: 32,  status: 'En curso'      },
+  { id: '4', name: 'Pérdida de Peso Sostenible',    org: 'Centro de Salud Vital',   mentor: 'Laura Silva',    students: 25,  status: 'Finalizado'    },
 ];
 
 const statusStyle: Record<string, string> = {
