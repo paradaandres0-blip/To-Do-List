@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 // Layouts
 import { AuthLayout }      from '../layouts/AuthLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { PrivateRoute }    from './PrivateRoute';
 
 // Auth
 import { Login }         from '../pages/auth/Login';
@@ -18,7 +19,7 @@ import { Profile }       from '../pages/profile/Profile';
 
 const router = createBrowserRouter([
   // ── Accesos cortos ──
-  { path: '/login',   element: <Navigate to="/auth/login" replace /> },
+  { path: '/login', element: <Navigate to="/auth/login" replace /> },
 
   // ── Rutas públicas (Auth) ──
   {
@@ -30,19 +31,24 @@ const router = createBrowserRouter([
     ],
   },
 
-  // ── Rutas privadas (Dashboard) ──
+  // ── Rutas privadas (requieren token) ──
   {
-    path: '/',
-    element: <DashboardLayout />,
+    element: <PrivateRoute />,
     children: [
-      { path: '',              element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard',     element: <Dashboard />     },
-      { path: 'courses',       element: <Courses />       },
-      { path: 'tasks',         element: <Tasks />         },
-      { path: 'modules',       element: <Modules />       },
-      { path: 'organizations', element: <Organizations /> },
-      { path: 'reports',       element: <Reports />       },
-      { path: 'profile',       element: <Profile />       },
+      {
+        path: '/',
+        element: <DashboardLayout />,
+        children: [
+          { path: '',              element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard',     element: <Dashboard />     },
+          { path: 'courses',       element: <Courses />       },
+          { path: 'tasks',         element: <Tasks />         },
+          { path: 'modules',       element: <Modules />       },
+          { path: 'organizations', element: <Organizations /> },
+          { path: 'reports',       element: <Reports />       },
+          { path: 'profile',       element: <Profile />       },
+        ],
+      },
     ],
   },
 

@@ -3,6 +3,7 @@ import {
   Dumbbell, LayoutDashboard, BookOpen, Users, User,
   ClipboardList, Building2, BarChart2, LogOut, Settings, Layers,
 } from 'lucide-react';
+import useAuthStore from '../../../store/authStore';
 
 const NAV_ITEMS = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'     },
@@ -15,7 +16,13 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const logout    = useAuthStore((s) => s.logout);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/auth/login', { replace: true });
+  };
 
   return (
     <aside
@@ -89,7 +96,7 @@ export default function Sidebar() {
           Configuración
         </NavLink>
         <button
-          onClick={() => navigate('/auth/login')}
+          onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
         >
           <LogOut size={18} />
