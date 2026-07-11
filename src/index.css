@@ -16,6 +16,16 @@
   --color-brand-white:        #f8fafc;
   --color-brand-muted:        #94a3b8;
 
+  /* Mapeos para los componentes comunes */
+  --color-primary:            #7c3aed;
+  --color-primary-hover:      #5b21b6;
+  --color-secondary:          #2563eb;
+  --color-secondary-hover:    #1d4ed8;
+  --color-dark:               #0f172a;
+  --color-dark-gray:          #1e293b;
+  --color-light-gray:         #94a3b8;
+  --color-background:         #f8fafc;
+
   --font-sans: 'Inter', sans-serif;
 }
 

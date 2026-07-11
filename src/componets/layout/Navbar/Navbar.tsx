@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Search, ChevronDown, User, Settings, LogOut, X } from 'lucide-react';
+import { Bell, ChevronDown, User, Settings, LogOut, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../store/authStore';
 
@@ -27,16 +27,6 @@ export default function Navbar() {
       className="h-16 flex items-center justify-between px-6 flex-shrink-0 relative z-30"
       style={{ background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
     >
-      {/* ── Buscador ── */}
-      <div className="relative hidden sm:flex items-center">
-        <Search size={15} className="absolute left-3 text-slate-500 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Buscar programa, alumno..."
-          className="pl-9 pr-4 py-2 text-sm rounded-xl text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/40 w-64 transition-all"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}
-        />
-      </div>
 
       {/* ── Acciones ── */}
       <div className="flex items-center gap-2 ml-auto">
