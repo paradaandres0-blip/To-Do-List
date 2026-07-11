@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Bell, Search, ChevronDown, User, Settings, LogOut, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../../store/authStore';
 
 const NOTIFICATIONS = [
   { id: 1, text: 'Nueva inscripción en "Fitness Funcional"', time: 'Hace 5 min',  unread: true  },
@@ -9,10 +10,17 @@ const NOTIFICATIONS = [
 ];
 
 export default function Navbar() {
-  const navigate = useNavigate();
-  const [showNotif,  setShowNotif]  = useState(false);
+  const navigate   = useNavigate();
+  const logout     = useAuthStore((s) => s.logout);
+  const user       = useAuthStore((s) => s.user);
+  const [showNotif,   setShowNotif]   = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/auth/login', { replace: true });
+  };
 
   return (
     <header
@@ -93,14 +101,12 @@ export default function Navbar() {
             onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}
             className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl transition-colors hover:bg-white/5"
           >
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-            >
-              A
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+              {user?.name?.charAt(0).toUpperCase() ?? 'A'}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-semibold text-white leading-tight">Admin</p>
+              <p className="text-sm font-semibold text-white leading-tight">{user?.name?.split(' ')[0] ?? 'Admin'}</p>
               <p className="text-[11px] text-slate-500 leading-tight">WorkFlow Academy</p>
             </div>
             <ChevronDown size={13} className={`text-slate-500 transition-transform duration-200 ${showProfile ? 'rotate-180' : ''}`} />
@@ -113,8 +119,8 @@ export default function Navbar() {
               style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)' }}
             >
               <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-sm font-bold text-white">Julián Parada</p>
-                <p className="text-xs text-slate-500 mt-0.5">admin@workflow.com</p>
+                <p className="text-sm font-bold text-white">{user?.name ?? 'Administrador'}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{user?.email ?? 'admin@workflow.com'}</p>
               </div>
               <div className="py-1.5">
                 {[
@@ -130,7 +136,7 @@ export default function Navbar() {
               </div>
               <div className="py-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 <button
-                  onClick={() => navigate('/auth/login')}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-all"
                 >
                   <LogOut size={15} />
