@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Plus, Search, Users, MoreVertical, BookOpen, Trash2 } from 'lucide-react';
+import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../componets/common/Modal/Modal';
 
-const INITIAL_GROUPS = [
-  { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso'      },
-  { id: '2', name: 'Programa Nutrición Pro',        org: 'WorkFlow Academy',        mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones' },
-  { id: '3', name: 'Bienestar Mental Avanzado',     org: 'WorkFlow Academy',        mentor: 'Julián Parada',  students: 32,  status: 'En curso'      },
-  { id: '4', name: 'Pérdida de Peso Sostenible',    org: 'Centro de Salud Vital',   mentor: 'Laura Silva',    students: 25,  status: 'Finalizado'    },
+const INITIAL_GROUPS: Group[] = [
+  { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso',      members: ['Laura Gómez', 'Diego Torres', 'Mariana López', 'Camila Pérez'] },
+  { id: '2', name: 'Programa Nutrición Pro',        org: 'WorkFlow Academy',        mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones', members: ['Andrés Ramírez', 'Alejandra Ortiz', 'Sergio Díaz', 'Natalia Soto'] },
+  { id: '3', name: 'Bienestar Mental Avanzado',     org: 'WorkFlow Academy',        mentor: 'Julián Parada',  students: 32,  status: 'En curso',      members: ['Camila Torres', 'Martín Muñoz', 'Laura Duarte', 'María Jiménez'] },
+  { id: '4', name: 'Pérdida de Peso Sostenible',    org: 'Centro de Salud Vital',   mentor: 'Laura Silva',    students: 25,  status: 'Finalizado',    members: ['Sofía Vega', 'David Rojas', 'Mónica León', 'Raúl Herrera'] },
 ];
 
 const statusStyle: Record<string, string> = {
@@ -16,12 +16,24 @@ const statusStyle: Record<string, string> = {
   'Finalizado':    'bg-slate-100  text-slate-500   border-slate-200',
 };
 
+interface Group {
+  id:       string;
+  name:     string;
+  org:      string;
+  mentor:   string;
+  students: number;
+  status:   'En curso' | 'Inscripciones' | 'Finalizado';
+  members:  string[];
+}
+
 interface NewGroupForm { name: string; org: string; mentor: string; }
 
 export const Groups = () => {
-  const [groups, setGroups]       = useState(INITIAL_GROUPS);
+  const [groups, setGroups]       = useState<Group[]>(INITIAL_GROUPS);
   const [search, setSearch]       = useState('');
   const [isOpen, setIsOpen]       = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [detailGroup, setDetailGroup] = useState<Group | null>(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<NewGroupForm>();
 
   const filtered = groups.filter(
@@ -31,9 +43,30 @@ export const Groups = () => {
   );
 
   const onSubmit = (data: NewGroupForm) => {
-    setGroups([{ id: Math.random().toString(36).slice(2), ...data, students: 0, status: 'Inscripciones' }, ...groups]);
+    if (editingGroup) {
+      setGroups((prev) => prev.map((g) => g.id === editingGroup.id ? { ...g, ...data } : g));
+    } else {
+      setGroups([{ id: Math.random().toString(36).slice(2), ...data, students: 0, status: 'Inscripciones', members: [] }, ...groups]);
+    }
     setIsOpen(false);
+    setEditingGroup(null);
     reset();
+  };
+
+  const openEdit = (group: Group) => {
+    setEditingGroup(group);
+    reset({ name: group.name, org: group.org, mentor: group.mentor });
+    setIsOpen(true);
+  };
+
+  const openDetails = (group: Group) => {
+    setDetailGroup(group);
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('¿Eliminar este grupo?')) {
+      setGroups(groups.filter((g) => g.id !== id));
+    }
   };
 
   return (
@@ -51,7 +84,7 @@ export const Groups = () => {
           </p>
         </div>
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => { setEditingGroup(null); reset(); setIsOpen(true); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
         >
@@ -85,10 +118,19 @@ export const Groups = () => {
             className="bg-white rounded-2xl p-5 flex flex-col gap-4 transition-all hover:shadow-md relative"
             style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
           >
-            {/* Menú */}
-            <button className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-              <MoreVertical size={16} style={{ color: '#94a3b8' }} />
-            </button>
+            {/* Acciones */}
+            <div className="absolute top-4 right-4 flex items-center gap-1">
+              <button onClick={() => openDetails(group)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Ver detalle">
+                <MoreVertical size={16} style={{ color: '#94a3b8' }} />
+              </button>
+              <button onClick={() => openEdit(group)}
+                className="p-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+                title="Editar grupo">
+                <Pencil size={16} style={{ color: '#7c3aed' }} />
+              </button>
+            </div>
 
             {/* Avatar grupo */}
             <div className="flex items-center gap-3 pr-8">
@@ -130,7 +172,7 @@ export const Groups = () => {
                 {group.status}
               </span>
               <button
-                onClick={() => setGroups(groups.filter((g) => g.id !== group.id))}
+                onClick={() => handleDelete(group.id)}
                 className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
               >
                 <Trash2 size={14} style={{ color: '#f87171' }} />
@@ -148,7 +190,7 @@ export const Groups = () => {
       </div>
 
       {/* Modal */}
-      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); reset(); }} title="Crear Nuevo Grupo">
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingGroup(null); reset(); }} title={editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           <div className="flex flex-col gap-1.5">
@@ -191,7 +233,7 @@ export const Groups = () => {
           <div className="flex gap-3 justify-end pt-2">
             <button
               type="button"
-              onClick={() => { setIsOpen(false); reset(); }}
+              onClick={() => { setIsOpen(false); setEditingGroup(null); reset(); }}
               className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-slate-100"
               style={{ border: '1px solid #e2e8f0', color: '#475569' }}
             >
@@ -202,10 +244,52 @@ export const Groups = () => {
               className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
             >
-              Crear Grupo
+              {editingGroup ? 'Guardar cambios' : 'Crear Grupo'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!detailGroup} onClose={() => setDetailGroup(null)} title="Detalle del Grupo">
+        {detailGroup && (
+          <div className="space-y-4 text-sm text-slate-700">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Grupo</p>
+              <p className="text-base font-semibold text-slate-900">{detailGroup.name}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Organización</p>
+                <p className="text-sm font-medium text-slate-900">{detailGroup.org}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Mentor</p>
+                <p className="text-sm font-medium text-slate-900">{detailGroup.mentor}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Estudiantes</p>
+                <p className="text-sm font-medium text-slate-900">{detailGroup.students}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Estado</p>
+                <p className="text-sm font-medium text-slate-900">{detailGroup.status}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Alumnos asignados</p>
+              <ul className="space-y-2">
+                {detailGroup.members.map((member) => (
+                  <li key={member} className="rounded-2xl bg-slate-50 px-3 py-2 text-slate-800">
+                    {member}
+                  </li>
+                ))}
+                {detailGroup.members.length === 0 && (
+                  <li className="rounded-2xl bg-slate-50 px-3 py-2 text-slate-500">Sin alumnos asignados</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
