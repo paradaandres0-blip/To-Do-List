@@ -16,6 +16,8 @@ import { Modules }       from '../pages/modules/Modules';
 import { Organizations } from '../pages/organizations/Organizations';
 import { Reports }       from '../pages/reports/Reports';
 import { Profile }       from '../pages/profile/Profile';
+import { Students }      from '../pages/students/Students';
+import { Settings }      from '../pages/settings/Settings';
 
 const router = createBrowserRouter([
   // ── Accesos cortos ──
@@ -47,6 +49,8 @@ const router = createBrowserRouter([
           { path: 'organizations', element: <Organizations /> },
           { path: 'reports',       element: <Reports />       },
           { path: 'profile',       element: <Profile />       },
+          { path: 'students',      element: <Students />      },
+          { path: 'settings',      element: <Settings />      },
         ],
       },
     ],

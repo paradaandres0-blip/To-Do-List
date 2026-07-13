@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, BookOpen, CheckCircle2, TrendingUp,
   Clock, MoreVertical, Download, ArrowUpRight,
@@ -62,6 +63,7 @@ const fade = (delay = 0) => ({
 });
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
   return (
     <div className="w-full space-y-6">
 
@@ -234,9 +236,11 @@ export const Dashboard = () => {
               </div>
             ))}
           </div>
-          <button className="w-full mt-5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80"
+          <button
+            onClick={() => navigate('/tasks')}
+            className="w-full mt-5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer"
             style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.15)', color: '#7c3aed' }}>
-            Ver toda la actividad
+            Ver toda la actividad →
           </button>
         </motion.div>
 
@@ -277,9 +281,11 @@ export const Dashboard = () => {
               </div>
             ))}
           </div>
-          <button className="w-full mt-4 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80"
+          <button
+            onClick={() => navigate('/students')}
+            className="w-full mt-4 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer"
             style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.15)', color: '#7c3aed' }}>
-            Ver todos los alumnos
+            Ver todos los alumnos →
           </button>
         </motion.div>
 
