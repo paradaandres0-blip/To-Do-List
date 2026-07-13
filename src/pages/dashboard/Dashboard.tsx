@@ -283,7 +283,11 @@ export const Dashboard = () => {
           </div>
           <button
 <<<<<<< HEAD
+<<<<<<< HEAD
             onClick={() => navigate('/groups')}
+=======
+            onClick={() => navigate('/students')}
+>>>>>>> 1808959af09748b085c90ce2a89f767e6d2eaed4
 =======
             onClick={() => navigate('/students')}
 >>>>>>> 1808959af09748b085c90ce2a89f767e6d2eaed4
