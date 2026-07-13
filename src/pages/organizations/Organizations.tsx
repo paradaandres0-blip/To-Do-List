@@ -1,38 +1,129 @@
 import { useState } from 'react';
-import { Building2, Plus, Search, Users, BookOpen, MoreVertical, Globe, Trash2 } from 'lucide-react';
+import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../componets/common/Modal/Modal';
 
-const INITIAL_ORGS = [
-  { id: '1', name: 'WorkFlow Academy',      website: 'www.workflowacademy.co', groups: 5, students: 240, plan: 'Enterprise', active: true  },
-  { id: '2', name: 'Centro de Salud Vital', website: 'www.saludvital.co',      groups: 3, students: 120, plan: 'Pro',        active: true  },
-  { id: '3', name: 'FitLife Institute',     website: 'www.fitlife.org',        groups: 2, students: 68,  plan: 'Básico',     active: false },
-  { id: '4', name: 'NutriPro Academy',      website: 'www.nutripro.co',        groups: 4, students: 190, plan: 'Pro',        active: true  },
+interface Organization {
+  id: string;
+  name: string;
+  website: string;
+  groups: number;
+  students: number;
+  plan: 'Enterprise' | 'Pro' | 'Básico';
+  active: boolean;
+  assignedGroups: string[];
+}
+
+const INITIAL_ORGS: Organization[] = [
+  {
+    id: '1',
+    name: 'WorkFlow Academy',
+    website: 'www.workflowacademy.co',
+    groups: 5,
+    students: 240,
+    plan: 'Enterprise',
+    active: true,
+    assignedGroups: ['Cohorte Fitness 2026', 'Programa Nutrición Pro', 'Bienestar Mental Avanzado'],
+  },
+  {
+    id: '2',
+    name: 'Centro de Salud Vital',
+    website: 'www.saludvital.co',
+    groups: 3,
+    students: 120,
+    plan: 'Pro',
+    active: true,
+    assignedGroups: ['Pérdida de Peso Sostenible', 'Nutrición Funcional', 'Salud Integral'],
+  },
+  {
+    id: '3',
+    name: 'FitLife Institute',
+    website: 'www.fitlife.org',
+    groups: 2,
+    students: 68,
+    plan: 'Básico',
+    active: false,
+    assignedGroups: ['Entrenamiento Funcional', 'Yoga para Bienestar'],
+  },
+  {
+    id: '4',
+    name: 'NutriPro Academy',
+    website: 'www.nutripro.co',
+    groups: 4,
+    students: 190,
+    plan: 'Pro',
+    active: true,
+    assignedGroups: ['Nutrición Deportiva', 'Cohorte Keto', 'Plan Detox', 'Educación Alimentaria'],
+  },
 ];
 
-const planStyle: Record<string, string> = {
+const planStyle: Record<Organization['plan'], string> = {
   Enterprise: 'bg-purple-50 text-purple-700 border-purple-200',
-  Pro:        'bg-blue-50   text-blue-700   border-blue-200',
-  Básico:     'bg-slate-50  text-slate-500  border-slate-200',
+  Pro: 'bg-blue-50 text-blue-700 border-blue-200',
+  Básico: 'bg-slate-50 text-slate-500 border-slate-200',
 };
 
-interface OrgForm { name: string; website: string; plan: string; }
+interface OrgForm { name: string; website: string; plan: Organization['plan']; }
 
 export const Organizations = () => {
-  const [orgs, setOrgs]     = useState(INITIAL_ORGS);
+  const [orgs, setOrgs] = useState<Organization[]>(INITIAL_ORGS);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [detailOrg, setDetailOrg] = useState<Organization | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrgForm>();
 
   const filtered = orgs.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase())
+    o.name.toLowerCase().includes(search.toLowerCase()) ||
+    o.website.toLowerCase().includes(search.toLowerCase())
   );
 
   const onSubmit = (data: OrgForm) => {
-    setOrgs([{ id: Math.random().toString(36).slice(2), ...data, groups: 0, students: 0, active: true }, ...orgs]);
+    if (editingOrg) {
+      setOrgs((prev) => prev.map((org) => (org.id === editingOrg.id ? { ...org, ...data } : org)));
+    } else {
+      setOrgs([
+        {
+          id: Math.random().toString(36).slice(2),
+          ...data,
+          groups: 0,
+          students: 0,
+          active: true,
+          assignedGroups: [],
+        },
+        ...orgs,
+      ]);
+    }
     setIsOpen(false);
+    setEditingOrg(null);
     reset();
+  };
+
+  const openEdit = (org: Organization) => {
+    setEditingOrg(org);
+    reset({ name: org.name, website: org.website, plan: org.plan });
+    setIsOpen(true);
+  };
+
+  const openDetails = (org: Organization) => {
+    setDetailOrg(org);
+  };
+
+  const toggleActive = (id: string) => {
+    setOrgs((prev) => prev.map((org) => (org.id === id ? { ...org, active: !org.active } : org)));
+    if (detailOrg?.id === id) {
+      setDetailOrg((current) => current ? { ...current, active: !current.active } : current);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('¿Eliminar este centro?')) {
+      setOrgs((prev) => prev.filter((org) => org.id !== id));
+      if (detailOrg?.id === id) {
+        setDetailOrg(null);
+      }
+    }
   };
 
   return (
@@ -50,7 +141,11 @@ export const Organizations = () => {
           </p>
         </div>
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            setEditingOrg(null);
+            reset({ plan: 'Básico' });
+            setIsOpen(true);
+          }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
         >
@@ -146,13 +241,35 @@ export const Organizations = () => {
                 </td>
 
                 <td className="px-5 py-4">
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-                      <MoreVertical size={15} style={{ color: '#94a3b8' }} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => openDetails(org)}
+                      className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+                      title="Ver detalle"
+                    >
+                      <Eye size={16} />
                     </button>
-                    <button onClick={() => setOrgs(orgs.filter((o) => o.id !== org.id))}
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                      <Trash2 size={15} style={{ color: '#f87171' }} />
+                    <button
+                      onClick={() => openEdit(org)}
+                      className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+                      title="Editar centro"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => toggleActive(org.id)}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        org.active ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {org.active ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(org.id)}
+                      className="p-2 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+                      title="Eliminar centro"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </td>
@@ -170,7 +287,7 @@ export const Organizations = () => {
       </div>
 
       {/* Modal */}
-      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); reset(); }} title="Nuevo Centro">
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingOrg(null); reset(); }} title={editingOrg ? 'Editar Centro' : 'Nuevo Centro'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {([
             { name: 'name'    as const, label: 'Nombre',    placeholder: 'Ej. Centro FitLife' },
@@ -200,7 +317,7 @@ export const Organizations = () => {
           </div>
 
           <div className="flex gap-3 justify-end pt-2">
-            <button type="button" onClick={() => { setIsOpen(false); reset(); }}
+            <button type="button" onClick={() => { setIsOpen(false); setEditingOrg(null); reset(); }}
               className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-slate-100"
               style={{ border: '1px solid #e2e8f0', color: '#475569' }}>
               Cancelar
@@ -208,10 +325,82 @@ export const Organizations = () => {
             <button type="submit"
               className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-              Crear
+              {editingOrg ? 'Guardar cambios' : 'Crear Centro'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!detailOrg} onClose={() => setDetailOrg(null)} title="Detalle del Centro" maxWidth="lg">
+        {detailOrg && (
+          <div className="space-y-5 text-slate-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Centro</p>
+                <p className="text-base font-semibold text-slate-900">{detailOrg.name}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Sitio web</p>
+                <p className="text-base font-semibold text-slate-900">{detailOrg.website}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Plan</p>
+                <p className="text-base font-semibold text-slate-900">{detailOrg.plan}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Estado</p>
+                <p className="text-base font-semibold text-slate-900">{detailOrg.active ? 'Activo' : 'Inactivo'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Grupos</p>
+                <p className="text-xl font-bold text-slate-900">{detailOrg.groups}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Alumnos</p>
+                <p className="text-xl font-bold text-slate-900">{detailOrg.students}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-4 border border-slate-100">
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Acción</p>
+                <button
+                  onClick={() => {
+                    if (detailOrg) {
+                      toggleActive(detailOrg.id);
+                      setDetailOrg({ ...detailOrg, active: !detailOrg.active });
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    detailOrg.active ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  {detailOrg.active ? 'Desactivar' : 'Activar'}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-slate-900">Grupos asignados</p>
+                <span className="text-xs text-slate-500">{detailOrg.assignedGroups.length} grupos</span>
+              </div>
+              <ul className="space-y-2">
+                {detailOrg.assignedGroups.length > 0 ? (
+                  detailOrg.assignedGroups.map((group) => (
+                    <li key={group} className="rounded-2xl bg-white px-3 py-2 border border-slate-200 text-sm text-slate-800">
+                      {group}
+                    </li>
+                  ))
+                ) : (
+                  <li className="rounded-2xl bg-white px-3 py-2 border border-slate-200 text-sm text-slate-400">
+                    No hay grupos asignados
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
