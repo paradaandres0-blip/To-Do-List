@@ -6,13 +6,14 @@ import {
 import useAuthStore from '../../../store/authStore';
 
 const NAV_ITEMS = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'     },
-  { to: '/courses',       icon: BookOpen,         label: 'Programas'     },
-  { to: '/modules',       icon: Layers,           label: 'Módulos'       },
-  { to: '/tasks',         icon: ClipboardList,    label: 'Tareas'        },
-  { to: '/groups',        icon: Users,            label: 'Grupos'        },
-  { to: '/organizations', icon: Building2,        label: 'Centros'       },
-  { to: '/reports',       icon: BarChart2,        label: 'Reportes'      },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'   },
+  { to: '/courses',       icon: BookOpen,         label: 'Programas'   },
+  { to: '/modules',       icon: Layers,           label: 'Módulos'     },
+  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones'    },
+  { to: '/students',      icon: Users,            label: 'Alumnos'     },
+  { to: '/groups',        icon: Users,            label: 'Grupos'      },
+  { to: '/organizations', icon: Building2,        label: 'Centros'     },
+  { to: '/reports',       icon: BarChart2,        label: 'Reportes'    },
 ];
 
 export default function Sidebar() {
