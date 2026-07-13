@@ -282,7 +282,11 @@ export const Dashboard = () => {
             ))}
           </div>
           <button
+<<<<<<< HEAD
             onClick={() => navigate('/groups')}
+=======
+            onClick={() => navigate('/students')}
+>>>>>>> 1808959af09748b085c90ce2a89f767e6d2eaed4
             className="w-full mt-4 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer"
             style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.15)', color: '#7c3aed' }}>
             Ver todos los alumnos →
