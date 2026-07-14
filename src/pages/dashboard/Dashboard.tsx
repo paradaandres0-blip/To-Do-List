@@ -1,18 +1,12 @@
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, BookOpen, CheckCircle2, TrendingUp,
   Clock, MoreVertical, Download, ArrowUpRight,
-  Dumbbell, Apple, Brain, Flame,
+  Dumbbell, Apple, Brain, Flame, RefreshCw,
 } from 'lucide-react';
-
-// ── Métricas principales ──
-const STATS = [
-  { title: 'Alumnos Activos',       value: '2,148',  icon: Users,        trend: '+12%', from: '#7c3aed', to: '#2563eb' },
-  { title: 'Programas Activos',     value: '58',     icon: BookOpen,     trend: '+8%',  from: '#2563eb', to: '#0ea5e9' },
-  { title: 'Sesiones Completadas',  value: '12,430', icon: CheckCircle2, trend: '+22%', from: '#059669', to: '#10b981' },
-  { title: 'Satisfacción',          value: '98%',    icon: TrendingUp,   trend: '+2%',  from: '#d97706', to: '#f59e0b' },
-];
+import useMetricsStore from '../../store/metricsStore';
 
 // ── Actividad reciente ──
 const RECENT = [
@@ -64,6 +58,40 @@ const fade = (delay = 0) => ({
 
 export const Dashboard = () => {
   const navigate = useNavigate();
+  const { metrics, isLoading, error, fetchMetrics, refreshMetrics } = useMetricsStore();
+
+  // Carga métricas al montar (respeta caché de 1 min)
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
+
+  // KPIs dinámicos desde el store — si no hay datos aún usa placeholders
+  const STATS = [
+    {
+      title: 'Alumnos Activos',
+      value: isLoading ? '…' : metrics ? metrics.studentsActive.toLocaleString() : '—',
+      trend: metrics?.trends.students ?? '+0%',
+      icon: Users, from: '#7c3aed', to: '#2563eb',
+    },
+    {
+      title: 'Programas Activos',
+      value: isLoading ? '…' : metrics ? metrics.programsActive.toLocaleString() : '—',
+      trend: metrics?.trends.programs ?? '+0%',
+      icon: BookOpen, from: '#2563eb', to: '#0ea5e9',
+    },
+    {
+      title: 'Sesiones Completadas',
+      value: isLoading ? '…' : metrics ? metrics.sessionsCompleted.toLocaleString() : '—',
+      trend: metrics?.trends.sessions ?? '+0%',
+      icon: CheckCircle2, from: '#059669', to: '#10b981',
+    },
+    {
+      title: 'Satisfacción',
+      value: isLoading ? '…' : metrics ? `${metrics.satisfaction}%` : '—',
+      trend: metrics?.trends.satisfaction ?? '+0%',
+      icon: TrendingUp, from: '#d97706', to: '#f59e0b',
+    },
+  ];
   return (
     <div className="w-full space-y-6">
 
@@ -77,13 +105,34 @@ export const Dashboard = () => {
             Resumen general de programas, alumnos y actividad.
           </p>
         </div>
-        <button
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-        >
-          <Download size={15} /> Exportar Reporte
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Botón refresh */}
+          <button
+            onClick={() => refreshMetrics()}
+            disabled={isLoading}
+            className="p-2.5 rounded-xl transition-all hover:bg-slate-100 disabled:opacity-50"
+            style={{ border:'1px solid #e2e8f0' }}
+            title="Actualizar métricas">
+            <RefreshCw size={15} style={{ color:'#64748b' }} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+            <Download size={15} /> Exportar Reporte
+          </button>
+        </div>
       </motion.div>
+
+      {/* Error de métricas */}
+      {error && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{ background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.2)', color:'#ef4444' }}>
+          ⚠️ {error}
+          <button onClick={() => refreshMetrics()} className="ml-auto text-xs underline hover:no-underline">
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -99,14 +148,27 @@ export const Dashboard = () => {
                 style={{ background: `linear-gradient(135deg,${s.from},${s.to})` }}>
                 <s.icon size={20} className="text-white" />
               </div>
-              <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
-                style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                <ArrowUpRight size={11} />{s.trend}
-              </span>
+              {isLoading ? (
+                <div className="h-6 w-12 rounded-full animate-pulse" style={{ background:'#f1f5f9' }} />
+              ) : (
+                <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
+                  style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                  <ArrowUpRight size={11} />{s.trend}
+                </span>
+              )}
             </div>
             <div>
-              <p className="text-3xl font-extrabold" style={{ color: '#0f172a' }}>{s.value}</p>
-              <p className="text-sm font-medium mt-0.5" style={{ color: '#64748b' }}>{s.title}</p>
+              {isLoading ? (
+                <>
+                  <div className="h-8 w-20 rounded-lg animate-pulse mb-2" style={{ background:'#f1f5f9' }} />
+                  <div className="h-4 w-28 rounded animate-pulse" style={{ background:'#f1f5f9' }} />
+                </>
+              ) : (
+                <>
+                  <p className="text-3xl font-extrabold" style={{ color: '#0f172a' }}>{s.value}</p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: '#64748b' }}>{s.title}</p>
+                </>
+              )}
             </div>
           </motion.div>
         ))}
