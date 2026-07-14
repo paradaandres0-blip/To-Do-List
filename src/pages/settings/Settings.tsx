@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff, Camera, Loader } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../store/authStore';
 import { updateProfileRequest, changePasswordRequest } from '../../services/authService';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useAvatarUpload } from '../../hooks/useAvatarUpload';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -46,6 +47,9 @@ export const Settings = () => {
 
   // ── Notificaciones: hook con auto-save ──
   const { prefs: notifs, toggle: toggleNotif, saveAll: saveAllNotifs, syncStatus } = useNotifications();
+
+  // ── Avatar upload ──
+  const { avatarUrl, isUploading, uploadError, inputRef, openFilePicker, handleFileChange } = useAvatarUpload();
 
   useEffect(() => {
     const storedOrg = localStorage.getItem('wf_org');
@@ -169,15 +173,38 @@ export const Settings = () => {
             <form onSubmit={hsP(onSaveProfile)} className="space-y-5">
               <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Información Personal</h2>
 
-              {/* Avatar */}
+              {/* Avatar con upload */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold"
-                  style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  {user?.name?.charAt(0) ?? 'A'}
+                <div className="relative">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar"
+                      className="w-16 h-16 rounded-2xl object-cover"
+                      style={{ border:'2px solid rgba(124,58,237,0.2)' }} />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold"
+                      style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                      {user?.name?.charAt(0) ?? 'A'}
+                    </div>
+                  )}
+                  {isUploading && (
+                    <div className="absolute inset-0 rounded-2xl flex items-center justify-center"
+                      style={{ background:'rgba(0,0,0,0.5)' }}>
+                      <Loader size={16} className="text-white animate-spin" />
+                    </div>
+                  )}
+                  <button type="button" onClick={openFilePicker} disabled={isUploading}
+                    className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-lg flex items-center justify-center text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+                    style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                    title="Cambiar foto de perfil">
+                    <Camera size={12} />
+                  </button>
+                  <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleFileChange} className="hidden" />
                 </div>
                 <div>
                   <p className="text-sm font-bold" style={{ color:'#0f172a' }}>{user?.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color:'#94a3b8' }}>Administrador · WorkFlow Academy</p>
+                  <p className="text-xs mt-0.5" style={{ color:'#94a3b8' }}>{user?.role === 'admin' ? 'Administrador' : user?.role ?? 'Sin rol'} · WorkFlow Academy</p>
+                  {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
                 </div>
               </div>
 

@@ -180,3 +180,26 @@ export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promis
   }
   await api.patch('/users/me/notifications', prefs);
 };
+
+// ────────────────────────────────────────────
+// POST /users/me/avatar  — subir avatar de usuario
+// ────────────────────────────────────────────
+export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: string }> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 800));
+    // En mock convertimos el archivo a data URL local
+    const url = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+    return { avatarUrl: url };
+  }
+
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const { data } = await api.post<{ avatarUrl: string }>('/users/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
