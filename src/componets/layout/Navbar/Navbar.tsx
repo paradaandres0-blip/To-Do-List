@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, ChevronDown, User, Settings, LogOut, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import useAuthStore from '../../../store/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 
 const NOTIFICATIONS = [
   { id: 1, text: 'Nueva inscripción en "Fitness Funcional"', time: 'Hace 5 min',  unread: true  },
@@ -11,15 +11,12 @@ const NOTIFICATIONS = [
 
 export default function Navbar() {
   const navigate   = useNavigate();
-  const logout     = useAuthStore((s) => s.logout);
-  const user       = useAuthStore((s) => s.user);
+  const { user, handleLogout: hookLogout } = useAuth();
   const [showNotif,   setShowNotif]   = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
-
   const handleLogout = async () => {
-    await logout();
-    navigate('/auth/login', { replace: true });
+    await hookLogout();
   };
 
   return (
