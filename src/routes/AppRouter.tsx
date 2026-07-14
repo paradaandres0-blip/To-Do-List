@@ -1,46 +1,65 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 
 // Layouts
-import { AuthLayout } from '../layouts/AuthLayout';
+import { AuthLayout }      from '../layouts/AuthLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { PrivateRoute }    from './PrivateRoute';
 
-// Pages (Importaciones preparadas para los siguientes pasos)
-// auth
-import { Login } from '../pages/auth/Login';
-// dashboard
-import { Dashboard } from '../pages/dashboard/Dashboard';
+// Auth
+import { Login }         from '../pages/auth/Login';
+
+// Dashboard
+import { Dashboard }     from '../pages/dashboard/Dashboard';
+import { Courses }       from '../pages/courses/Courses';
+import { Tasks }         from '../pages/tasks/Tasks';
+import { Modules }       from '../pages/modules/Modules';
 import { Organizations } from '../pages/organizations/Organizations';
-// Aquí irán el resto de importaciones (Groups, Courses, etc.) a medida que las creemos.
+import { Reports }       from '../pages/reports/Reports';
+import { Profile }       from '../pages/profile/Profile';
+import { Students }      from '../pages/students/Students';
+import { Settings }      from '../pages/settings/Settings';
+import { Groups }        from '../pages/groups/Groups';
 
 const router = createBrowserRouter([
+  // ── Accesos cortos ──
+  { path: '/login', element: <Navigate to="/auth/login" replace /> },
+
+  // ── Rutas públicas (Auth) ──
   {
-    // Rutas públicas (Autenticación)
     path: '/auth',
     element: <AuthLayout />,
     children: [
       { path: 'login', element: <Login /> },
-      // Redirección por defecto en auth
-      { path: '', element: <Navigate to="login" replace /> },
+      { path: '',      element: <Navigate to="login" replace /> },
     ],
   },
+
+  // ── Rutas privadas (requieren token) ──
   {
-    // Rutas privadas (Sistema principal)
-    path: '/',
-    element: <DashboardLayout />,
+    element: <PrivateRoute />,
     children: [
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'organizations', element: <Organizations /> },
-      // Redirección por defecto al entrar al sistema
-      { path: '', element: <Navigate to="dashboard" replace /> },
+      {
+        path: '/',
+        element: <DashboardLayout />,
+        children: [
+          { path: '',              element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard',     element: <Dashboard />     },
+          { path: 'courses',       element: <Courses />       },
+          { path: 'tasks',         element: <Tasks />         },
+          { path: 'modules',       element: <Modules />       },
+          { path: 'groups',        element: <Groups />        },
+          { path: 'organizations', element: <Organizations /> },
+          { path: 'reports',       element: <Reports />       },
+          { path: 'profile',       element: <Profile />       },
+          { path: 'students',      element: <Students />      },
+          { path: 'settings',      element: <Settings />      },
+        ],
+      },
     ],
   },
-  {
-    // Fallback: Cualquier ruta no encontrada redirige al login por seguridad
-    path: '*',
-    element: <Navigate to="/auth/login" replace />,
-  }
+
+  // ── Fallback ──
+  { path: '*', element: <Navigate to="/auth/login" replace /> },
 ]);
 
-export const AppRouter = () => {
-  return <RouterProvider router={router} />;
-};
+export const AppRouter = () => <RouterProvider router={router} />;
