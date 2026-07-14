@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../store/authStore';
-import { updateProfileRequest } from '../../services/authService';
+import { updateProfileRequest, changePasswordRequest } from '../../services/authService';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -22,7 +22,8 @@ export const Settings = () => {
   
   // Custom Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving,    setIsSaving]    = useState(false);
+  const [isSavingPwd, setIsSavingPwd] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [orgInfo, setOrgInfo] = useState<OrgInfo>({
     name: 'WorkFlow Academy',
@@ -40,7 +41,7 @@ export const Settings = () => {
       city: user?.city ?? 'Bogotá, Colombia',
     },
   });
-  const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch } = useForm<PasswordForm>();
+  const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch, reset: resetPwd } = useForm<PasswordForm>();
 
   const [notifs, setNotifs] = useState({
     sesiones:  true,
@@ -90,9 +91,21 @@ export const Settings = () => {
     }
   };
 
-  const onSaveSecurity = (data: PasswordForm) => {
-    console.log('Cambiar contraseña frontend:', data);
-    showToast('Contraseña actualizada (Simulado)', 'success');
+  const onSaveSecurity = async (data: PasswordForm) => {
+    setIsSavingPwd(true);
+    try {
+      await changePasswordRequest({
+        currentPassword: data.current,
+        newPassword:     data.newPass,
+      });
+      showToast('Contraseña actualizada correctamente', 'success');
+      resetPwd();
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || 'Error de red al cambiar la contraseña';
+      showToast(errMsg, 'error');
+    } finally {
+      setIsSavingPwd(false);
+    }
   };
 
   const onSaveNotifications = () => {
@@ -250,10 +263,20 @@ export const Settings = () => {
               ))}
 
               <div className="flex justify-end">
-                <button type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+                <button type="submit" disabled={isSavingPwd}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  <Save size={15} /> Actualizar contraseña
+                  {isSavingPwd ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span>Actualizando...</span>
+                    </>
+                  ) : (
+                    <><Save size={15} /> Actualizar contraseña</>
+                  )}
                 </button>
               </div>
             </form>

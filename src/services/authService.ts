@@ -104,3 +104,61 @@ export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<
   const { data } = await api.patch<AuthUser>('/users/me', payload);
   return data;
 };
+
+// ────────────────────────────────────────────
+// PATCH /auth/change-password  — cambiar contraseña
+// ────────────────────────────────────────────
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword:     string;
+}
+
+export const changePasswordRequest = async (payload: ChangePasswordPayload): Promise<void> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 700));
+    // Simula que la contraseña actual incorrecta devuelve error
+    if (payload.currentPassword.length < 6) {
+      throw { response: { data: { message: 'Contraseña actual incorrecta.' } } };
+    }
+    return;
+  }
+
+  await api.patch('/auth/change-password', payload);
+};
+
+// ────────────────────────────────────────────
+// POST /auth/forgot-password  — solicitar link de recuperación
+// ────────────────────────────────────────────
+export const forgotRequest = async (email: string): Promise<{ message: string }> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    return { message: 'Si el correo existe, recibirás un enlace en breve.' };
+  }
+  const { data } = await api.post<{ message: string }>('/auth/forgot-password', { email });
+  return data;
+};
+
+// ────────────────────────────────────────────
+// POST /auth/reset-password  — restablecer contraseña con token
+// ────────────────────────────────────────────
+export const resetRequest = async (token: string, password: string): Promise<{ message: string }> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    return { message: 'Contraseña restablecida correctamente.' };
+  }
+  const { data } = await api.post<{ message: string }>('/auth/reset-password', { token, password });
+  return data;
+};
+
+// ────────────────────────────────────────────
+// POST /auth/register  — registro de nuevo usuario
+// ────────────────────────────────────────────
+export interface RegisterPayload { name: string; email: string; password: string; }
+export const registerRequest = async (payload: RegisterPayload): Promise<{ message: string }> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 700));
+    return { message: 'Solicitud de acceso enviada. Un administrador revisará tu cuenta.' };
+  }
+  const { data } = await api.post<{ message: string }>('/auth/register', payload);
+  return data;
+};

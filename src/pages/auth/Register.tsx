@@ -6,7 +6,7 @@ import { registerRequest } from '../../services/authService';
 interface FormInputs { name: string; email: string; password: string; confirm: string }
 
 export const Register = () => {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<FormInputs>();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

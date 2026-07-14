@@ -1,5 +1,13 @@
 import axios from 'axios';
 
+// ── Limpiar auth store cuando el token expira sin importar el ciclo de React ──
+const clearAuthState = () => {
+  localStorage.removeItem('wf_token');
+  localStorage.removeItem('wf_refresh');
+  // Borra la clave persistida de Zustand para que al recargar no rehidrate con datos viejos
+  localStorage.removeItem('wf_auth');
+};
+
 // ── Instancia base ──
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api',
@@ -29,8 +37,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest?._retry) {
       const refreshToken = localStorage.getItem('wf_refresh');
       if (!refreshToken) {
-        localStorage.removeItem('wf_token');
-        localStorage.removeItem('wf_refresh');
+        clearAuthState();
         window.location.href = '/auth/login';
         return Promise.reject(error);
       }
@@ -59,8 +66,8 @@ api.interceptors.response.use(
               prom.reject(err);
             });
             (api as any)._failedQueue = [];
-            localStorage.removeItem('wf_token');
-            localStorage.removeItem('wf_refresh');
+            // Refresh también falló → sesión expirada definitivamente
+            clearAuthState();
             window.location.href = '/auth/login';
           })
           .finally(() => {

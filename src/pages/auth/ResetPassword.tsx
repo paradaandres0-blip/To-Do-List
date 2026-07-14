@@ -9,7 +9,7 @@ interface FormInputs { password: string; confirm: string }
 export const ResetPassword = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<FormInputs>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
