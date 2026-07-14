@@ -382,26 +382,85 @@ export const Settings = () => {
           {/* ── ORGANIZACIÓN ── */}
           {tab === 'org' && (
             <div className="space-y-5">
-              <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Información de la Organización</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Información de la Organización</h2>
+                {/* Badge de rol */}
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                  style={{
+                    background: user?.role === 'admin' ? 'rgba(124,58,237,0.1)' : 'rgba(148,163,184,0.1)',
+                    border:     user?.role === 'admin' ? '1px solid rgba(124,58,237,0.3)' : '1px solid rgba(148,163,184,0.3)',
+                    color:      user?.role === 'admin' ? '#7c3aed' : '#94a3b8',
+                  }}>
+                  {user?.role === 'admin' ? '🔓 Admin — Edición habilitada' : '🔒 Solo lectura'}
+                </span>
+              </div>
+
+              {/* Aviso si no es admin */}
+              {user?.role !== 'admin' && (
+                <div className="flex items-start gap-3 p-4 rounded-xl"
+                  style={{ background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.2)' }}>
+                  <span className="text-red-400 flex-shrink-0 mt-0.5">⚠️</span>
+                  <p className="text-xs text-red-500 font-medium leading-relaxed">
+                    No tienes permisos para editar los datos de la organización.
+                    Solo los administradores pueden modificar esta información.
+                    Contacta a tu administrador para realizar cambios.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label:'Nombre',   field:'name' as const },
-                  { label:'Website',  field:'website' as const },
-                  { label:'Plan',     field:'plan' as const },
-                  { label:'País',     field:'country' as const },
-                  { label:'Email de soporte', field:'supportEmail' as const },
-                ].map((f) => (
-                  <div key={f.label} className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium" style={{ color:'#334155' }}>{f.label}</label>
-                    <input value={orgInfo[f.field]} onChange={(e) => updateOrgField(f.field, e.target.value)} className={inputCls()} style={inputSt()} />
+                {([
+                  { label:'Nombre de la organización', field:'name'         as const, placeholder:'WorkFlow Academy'           },
+                  { label:'Sitio web',                  field:'website'      as const, placeholder:'www.workflowacademy.co'     },
+                  { label:'Plan activo',                field:'plan'         as const, placeholder:'Enterprise'                },
+                  { label:'País',                       field:'country'      as const, placeholder:'Colombia'                  },
+                  { label:'Email de soporte',           field:'supportEmail' as const, placeholder:'soporte@workflowacademy.co' },
+                ] as const).map((f) => (
+                  <div key={f.label} className={`flex flex-col gap-1.5 ${f.field === 'supportEmail' ? 'col-span-2' : ''}`}>
+                    <label className="text-sm font-medium" style={{ color: user?.role === 'admin' ? '#334155' : '#94a3b8' }}>
+                      {f.label}
+                    </label>
+                    <input
+                      value={orgInfo[f.field]}
+                      onChange={(e) => user?.role === 'admin' && updateOrgField(f.field, e.target.value)}
+                      placeholder={f.placeholder}
+                      disabled={user?.role !== 'admin'}
+                      className={inputCls()}
+                      style={{
+                        borderColor: '#e2e8f0',
+                        color: user?.role === 'admin' ? '#0f172a' : '#94a3b8',
+                        background: user?.role !== 'admin' ? '#f8fafc' : '#fff',
+                        cursor: user?.role !== 'admin' ? 'not-allowed' : 'text',
+                      }}
+                    />
                   </div>
                 ))}
               </div>
+
+              {/* Info de plan */}
+              <div className="flex items-center gap-3 p-4 rounded-xl"
+                style={{ background:'rgba(124,58,237,0.05)', border:'1px solid rgba(124,58,237,0.15)' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background:'rgba(124,58,237,0.12)' }}>
+                  <Building2 size={16} style={{ color:'#7c3aed' }} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold" style={{ color:'#7c3aed' }}>Plan {orgInfo.plan}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color:'#94a3b8' }}>
+                    Para cambiar de plan contacta a soporte: {orgInfo.supportEmail}
+                  </p>
+                </div>
+              </div>
+
               <div className="flex justify-end">
-                <button onClick={onSaveOrganization}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-                  style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  <Save size={15} /> Guardar
+                <button
+                  onClick={onSaveOrganization}
+                  disabled={user?.role !== 'admin'}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                  style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                  title={user?.role !== 'admin' ? 'Solo administradores pueden guardar cambios' : 'Guardar cambios'}>
+                  <Save size={15} /> Guardar organización
                 </button>
               </div>
             </div>
