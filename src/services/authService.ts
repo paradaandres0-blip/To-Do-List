@@ -19,6 +19,11 @@ export interface AuthUser {
 export interface LoginResponse {
   token: string;
   user:  AuthUser;
+  refreshToken?: string;
+}
+
+export interface RefreshResponse {
+  token: string;
 }
 
 // ── Usuario mock para desarrollo sin backend ──
@@ -44,6 +49,7 @@ export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse
     return {
       token: 'mock-jwt-token-' + Date.now(),
       user:  { ...MOCK_USER, email: payload.email },
+      refreshToken: 'mock-refresh-token-' + Date.now(),
     };
   }
 
@@ -70,5 +76,18 @@ export const logoutRequest = async (): Promise<void> => {
 export const getMeRequest = async (): Promise<AuthUser> => {
   if (IS_MOCK) return MOCK_USER;
   const { data } = await api.get<AuthUser>('/auth/me');
+  return data;
+};
+
+// ────────────────────────────────────────────
+// POST /auth/refresh  — obtener nuevo access token
+// ────────────────────────────────────────────
+export const refreshRequest = async (refreshToken: string): Promise<RefreshResponse> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return { token: 'mock-jwt-token-refreshed-' + Date.now() };
+  }
+
+  const { data } = await api.post<RefreshResponse>('/auth/refresh', { refreshToken });
   return data;
 };
