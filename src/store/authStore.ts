@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthUser, LoginPayload } from '../services/authService';
-import { loginRequest, logoutRequest } from '../services/authService';
+import { getMeRequest, loginRequest, logoutRequest } from '../services/authService';
 
 // ── Tipos del store ──
 interface AuthState {
@@ -11,10 +11,11 @@ interface AuthState {
   error:       string   | null;
 
   // Acciones
-  login:       (payload: LoginPayload) => Promise<void>;
-  logout:      () => Promise<void>;
-  clearError:  () => void;
-  setUser:     (user: AuthUser) => void;
+  login:          (payload: LoginPayload) => Promise<void>;
+  logout:         () => Promise<void>;
+  clearError:     () => void;
+  refreshSession: () => Promise<void>;
+  setUser:        (user: AuthUser) => void;
 }
 
 // ── Store ──
@@ -54,6 +55,20 @@ const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
+      refreshSession: async () => {
+        const token = localStorage.getItem('wf_token');
+        if (!token) return;
+
+        set({ isLoading: true, error: null });
+        try {
+          const user = await getMeRequest();
+          set({ user, isLoading: false, error: null });
+        } catch {
+          localStorage.removeItem('wf_token');
+          set({ user: null, token: null, isLoading: false, error: null });
+          throw new Error('La sesión expiró.');
+        }
+      },
       setUser:    (user) => set({ user }),
     }),
     {
