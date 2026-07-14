@@ -23,12 +23,64 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Token expirado o inválido → limpiar sesión y redirigir
-    if (error.response?.status === 401) {
-      localStorage.removeItem('wf_token');
-      localStorage.removeItem('wf_user');
-      window.location.href = '/auth/login';
+    const originalRequest = error.config;
+
+    // Token expirado o inválido → intentar refresh flow
+    if (error.response?.status === 401 && !originalRequest?._retry) {
+      const refreshToken = localStorage.getItem('wf_refresh');
+      if (!refreshToken) {
+        localStorage.removeItem('wf_token');
+        localStorage.removeItem('wf_refresh');
+        window.location.href = '/auth/login';
+        return Promise.reject(error);
+      }
+
+      // Cola para peticiones que lleguen mientras se refresca
+      if (!(api as any)._isRefreshing) {
+        (api as any)._isRefreshing = true;
+        (api as any)._failedQueue = [] as Array<any>;
+
+        const refreshClient = axios.create({ baseURL: api.defaults.baseURL });
+        refreshClient.post('/auth/refresh', { refreshToken })
+          .then(({ data }) => {
+            const newToken = data?.token;
+            if (newToken) {
+              localStorage.setItem('wf_token', newToken);
+              api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+            }
+
+            (api as any)._failedQueue.forEach((prom: any) => {
+              prom.resolve(newToken);
+            });
+            (api as any)._failedQueue = [];
+          })
+          .catch((err) => {
+            (api as any)._failedQueue.forEach((prom: any) => {
+              prom.reject(err);
+            });
+            (api as any)._failedQueue = [];
+            localStorage.removeItem('wf_token');
+            localStorage.removeItem('wf_refresh');
+            window.location.href = '/auth/login';
+          })
+          .finally(() => {
+            (api as any)._isRefreshing = false;
+          });
+      }
+
+      return new Promise((resolve, reject) => {
+        (api as any)._failedQueue.push({
+          resolve: (token: string) => {
+            if (!originalRequest.headers) originalRequest.headers = {};
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            resolve(axios(originalRequest));
+          },
+          reject: (err: any) => reject(err),
+        });
+      });
     }
+
+    // Otros errores → pasar adelante
     return Promise.reject(error);
   }
 );

@@ -1,9 +1,9 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   Dumbbell, LayoutDashboard, BookOpen, Users, User,
   ClipboardList, Building2, BarChart2, LogOut, Settings, Layers,
 } from 'lucide-react';
-import useAuthStore from '../../../store/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 
 const NAV_ITEMS = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'   },
@@ -17,12 +17,10 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const navigate  = useNavigate();
-  const logout    = useAuthStore((s) => s.logout);
+  const { handleLogout: hookLogout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/auth/login', { replace: true });
+    await hookLogout();
   };
 
   return (

@@ -7,6 +7,7 @@ import { getMeRequest, loginRequest, logoutRequest } from '../services/authServi
 interface AuthState {
   user:        AuthUser | null;
   token:       string   | null;
+  refreshToken: string   | null;
   isLoading:   boolean;
   error:       string   | null;
 
@@ -15,6 +16,7 @@ interface AuthState {
   logout:         () => Promise<void>;
   clearError:     () => void;
   refreshSession: () => Promise<void>;
+  setRefreshToken: (token: string | null) => void;
   setUser:        (user: AuthUser) => void;
 }
 
@@ -24,6 +26,7 @@ const useAuthStore = create<AuthState>()(
     (set, _get) => ({
       user:      null,
       token:     null,
+      refreshToken: null,
       isLoading: false,
       error:     null,
 
@@ -31,12 +34,13 @@ const useAuthStore = create<AuthState>()(
       login: async (payload) => {
         set({ isLoading: true, error: null });
         try {
-          const { token, user } = await loginRequest(payload);
+          const { token, user, refreshToken } = await loginRequest(payload as LoginPayload) as unknown as { token: string; user: AuthUser; refreshToken?: string };
 
-          // Guardamos el token en localStorage para el interceptor de axios
+          // Guardamos el token y refreshToken en localStorage para el interceptor de axios y refresh flow
           localStorage.setItem('wf_token', token);
+          if (refreshToken) localStorage.setItem('wf_refresh', refreshToken);
 
-          set({ user, token, isLoading: false, error: null });
+          set({ user, token, refreshToken: refreshToken ?? null, isLoading: false, error: null });
         } catch (err: unknown) {
           const message =
             (err as { response?: { data?: { message?: string } } })
@@ -51,7 +55,8 @@ const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         await logoutRequest();
         localStorage.removeItem('wf_token');
-        set({ user: null, token: null, isLoading: false, error: null });
+        localStorage.removeItem('wf_refresh');
+        set({ user: null, token: null, refreshToken: null, isLoading: false, error: null });
       },
 
       clearError: () => set({ error: null }),
@@ -69,6 +74,7 @@ const useAuthStore = create<AuthState>()(
           throw new Error('La sesión expiró.');
         }
       },
+      setRefreshToken: (token) => set({ refreshToken: token }),
       setUser:    (user) => set({ user }),
     }),
     {
@@ -76,6 +82,7 @@ const useAuthStore = create<AuthState>()(
       partialize: (state) => ({    // solo persistir user y token
         user:  state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
       }),
     }
   )

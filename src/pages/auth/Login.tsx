@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Dumbbell, Apple, Brain, Flame } from 'lucide-react';
-import useAuthStore from '../../store/authStore';
+import { useAuth } from '../../hooks/useAuth';
 
 interface LoginFormInputs {
   email:    string;
@@ -21,8 +20,7 @@ const FLOATING_ICONS = [
 ];
 
 export const Login = () => {
-  const navigate = useNavigate();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { handleLogin, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormInputs>();
@@ -30,8 +28,7 @@ export const Login = () => {
   const onSubmit = async (data: LoginFormInputs) => {
     clearError();
     try {
-      await login({ email: data.email, password: data.password });
-      navigate('/dashboard', { replace: true });
+      await handleLogin(data.email, data.password);
     } catch {
       // El error ya queda en el store y se muestra en el JSX
     }
