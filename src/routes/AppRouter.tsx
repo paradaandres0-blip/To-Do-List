@@ -18,6 +18,7 @@ import { Reports }       from '../pages/reports/Reports';
 import { Profile }       from '../pages/profile/Profile';
 import { Students }      from '../pages/students/Students';
 import { Settings }      from '../pages/settings/Settings';
+import { Groups }        from '../pages/groups/Groups';
 
 const router = createBrowserRouter([
   // ── Accesos cortos ──
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
           { path: 'courses',       element: <Courses />       },
           { path: 'tasks',         element: <Tasks />         },
           { path: 'modules',       element: <Modules />       },
+          { path: 'groups',        element: <Groups />        },
           { path: 'organizations', element: <Organizations /> },
           { path: 'reports',       element: <Reports />       },
           { path: 'profile',       element: <Profile />       },

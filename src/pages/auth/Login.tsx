@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Dumbbell, Apple, Brain, Flame } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
@@ -20,6 +21,7 @@ const FLOATING_ICONS = [
 ];
 
 export const Login = () => {
+  const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -29,8 +31,7 @@ export const Login = () => {
     clearError();
     try {
       await login({ email: data.email, password: data.password });
-      // Navegamos directamente con window.location para evitar problemas de rehidratación
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
     } catch {
       // El error ya queda en el store y se muestra en el JSX
     }
