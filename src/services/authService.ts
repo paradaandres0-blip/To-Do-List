@@ -12,6 +12,8 @@ export interface AuthUser {
   email:   string;
   role:    'admin' | 'instructor' | 'student';
   avatar?: string;
+  phone?:  string;
+  city?:   string;
 }
 
 export interface LoginResponse {

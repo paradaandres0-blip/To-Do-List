@@ -1,10 +1,11 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../store/authStore';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
+interface OrgInfo { name: string; website: string; plan: string; country: string; supportEmail: string; }
 
 const TABS = [
   { id:'profile',  icon: User,      label:'Mi Perfil'       },
@@ -15,12 +16,25 @@ const TABS = [
 
 export const Settings = () => {
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const [tab,     setTab]     = useState('profile');
   const [saved,   setSaved]   = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [orgInfo, setOrgInfo] = useState<OrgInfo>({
+    name: 'WorkFlow Academy',
+    website: 'www.workflowacademy.co',
+    plan: 'Enterprise',
+    country: 'Colombia',
+    supportEmail: 'soporte@workflowacademy.co',
+  });
 
-  const { register: regP, handleSubmit: hsP, formState: { errors: errP } } = useForm<ProfileForm>({
-    defaultValues: { name: user?.name ?? '', email: user?.email ?? '', phone: '', city: 'Bogotá, Colombia' },
+  const { register: regP, handleSubmit: hsP, formState: { errors: errP }, reset } = useForm<ProfileForm>({
+    defaultValues: {
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      phone: user?.phone ?? '',
+      city: user?.city ?? 'Bogotá, Colombia',
+    },
   });
   const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch } = useForm<PasswordForm>();
 
@@ -31,7 +45,53 @@ export const Settings = () => {
     reportes:  false,
   });
 
+  useEffect(() => {
+    const storedNotifs = localStorage.getItem('wf_notifs');
+    const storedOrg = localStorage.getItem('wf_org');
+    if (storedNotifs) {
+      try { setNotifs(JSON.parse(storedNotifs)); } catch {};
+    }
+    if (storedOrg) {
+      try { setOrgInfo(JSON.parse(storedOrg)); } catch {};
+    }
+  }, []);
+
+  useEffect(() => {
+    reset({
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      phone: user?.phone ?? '',
+      city: user?.city ?? 'Bogotá, Colombia',
+    });
+  }, [user, reset]);
+
   const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
+
+  const onSaveProfile = (data: ProfileForm) => {
+    if (user) {
+      setUser({ ...user, ...data });
+    }
+    showSaved();
+  };
+
+  const onSaveSecurity = (data: PasswordForm) => {
+    console.log('Cambiar contraseña frontend:', data);
+    showSaved();
+  };
+
+  const onSaveNotifications = () => {
+    localStorage.setItem('wf_notifs', JSON.stringify(notifs));
+    showSaved();
+  };
+
+  const onSaveOrganization = () => {
+    localStorage.setItem('wf_org', JSON.stringify(orgInfo));
+    showSaved();
+  };
+
+  const updateOrgField = (field: keyof OrgInfo, value: string) => {
+    setOrgInfo((prev) => ({ ...prev, [field]: value }));
+  };
 
   const inputCls = () =>
     `w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all`;
@@ -78,7 +138,7 @@ export const Settings = () => {
 
           {/* ── PERFIL ── */}
           {tab === 'profile' && (
-            <form onSubmit={hsP((d) => { console.log('Perfil:', d); showSaved(); })} className="space-y-5">
+            <form onSubmit={hsP(onSaveProfile)} className="space-y-5">
               <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Información Personal</h2>
 
               {/* Avatar */}
@@ -129,7 +189,7 @@ export const Settings = () => {
 
           {/* ── SEGURIDAD ── */}
           {tab === 'security' && (
-            <form onSubmit={hsS((d) => { console.log('Contraseña:', d); showSaved(); })} className="space-y-5">
+            <form onSubmit={hsS(onSaveSecurity)} className="space-y-5">
               <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Cambiar Contraseña</h2>
 
               {[
@@ -191,7 +251,7 @@ export const Settings = () => {
                 ))}
               </div>
               <div className="flex justify-end">
-                <button onClick={showSaved}
+                <button onClick={onSaveNotifications}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
                   <Save size={15} /> Guardar preferencias
@@ -206,19 +266,20 @@ export const Settings = () => {
               <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Información de la Organización</h2>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label:'Nombre',   def:'WorkFlow Academy' },
-                  { label:'Website',  def:'www.workflowacademy.co' },
-                  { label:'Plan',     def:'Enterprise' },
-                  { label:'País',     def:'Colombia' },
+                  { label:'Nombre',   field:'name' as const },
+                  { label:'Website',  field:'website' as const },
+                  { label:'Plan',     field:'plan' as const },
+                  { label:'País',     field:'country' as const },
+                  { label:'Email de soporte', field:'supportEmail' as const },
                 ].map((f) => (
                   <div key={f.label} className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" style={{ color:'#334155' }}>{f.label}</label>
-                    <input defaultValue={f.def} className={inputCls()} style={inputSt()} />
+                    <input value={orgInfo[f.field]} onChange={(e) => updateOrgField(f.field, e.target.value)} className={inputCls()} style={inputSt()} />
                   </div>
                 ))}
               </div>
               <div className="flex justify-end">
-                <button onClick={showSaved}
+                <button onClick={onSaveOrganization}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
                   <Save size={15} /> Guardar
