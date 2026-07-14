@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOf
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../store/authStore';
 import { updateProfileRequest, changePasswordRequest } from '../../services/authService';
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -43,19 +44,11 @@ export const Settings = () => {
   });
   const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch, reset: resetPwd } = useForm<PasswordForm>();
 
-  const [notifs, setNotifs] = useState({
-    sesiones:  true,
-    programas: true,
-    alumnos:   false,
-    reportes:  false,
-  });
+  // ── Notificaciones: hook con auto-save ──
+  const { prefs: notifs, toggle: toggleNotif, saveAll: saveAllNotifs, syncStatus } = useNotifications();
 
   useEffect(() => {
-    const storedNotifs = localStorage.getItem('wf_notifs');
     const storedOrg = localStorage.getItem('wf_org');
-    if (storedNotifs) {
-      try { setNotifs(JSON.parse(storedNotifs)); } catch {};
-    }
     if (storedOrg) {
       try { setOrgInfo(JSON.parse(storedOrg)); } catch {};
     }
@@ -108,9 +101,8 @@ export const Settings = () => {
     }
   };
 
-  const onSaveNotifications = () => {
-    localStorage.setItem('wf_notifs', JSON.stringify(notifs));
-    showToast('Preferencias guardadas correctamente', 'success');
+  const onSaveNotifications = async () => {
+    await saveAllNotifs();
   };
 
   const onSaveOrganization = () => {
@@ -285,7 +277,40 @@ export const Settings = () => {
           {/* ── NOTIFICACIONES ── */}
           {tab === 'notif' && (
             <div className="space-y-5">
-              <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Preferencias de Notificaciones</h2>
+              {/* Header con indicador de estado de sincronización */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold" style={{ color:'#0f172a' }}>Preferencias de Notificaciones</h2>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-all duration-300"
+                  style={{
+                    background: syncStatus === 'saved'  ? 'rgba(16,185,129,0.1)'  :
+                                syncStatus === 'saving' ? 'rgba(124,58,237,0.1)'  :
+                                syncStatus === 'error'  ? 'rgba(239,68,68,0.1)'   : 'rgba(148,163,184,0.1)',
+                    color:      syncStatus === 'saved'  ? '#10b981' :
+                                syncStatus === 'saving' ? '#7c3aed' :
+                                syncStatus === 'error'  ? '#ef4444' : '#94a3b8',
+                    border:     syncStatus === 'saved'  ? '1px solid rgba(16,185,129,0.25)'  :
+                                syncStatus === 'saving' ? '1px solid rgba(124,58,237,0.25)'  :
+                                syncStatus === 'error'  ? '1px solid rgba(239,68,68,0.25)'   : '1px solid rgba(148,163,184,0.25)',
+                  }}>
+                  {syncStatus === 'saving' && (
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  )}
+                  {syncStatus === 'saved'  && '✓'}
+                  {syncStatus === 'error'  && '✗'}
+                  {syncStatus === 'idle'   && '●'}
+                  {syncStatus === 'saving' ? 'Guardando...' :
+                   syncStatus === 'saved'  ? 'Guardado' :
+                   syncStatus === 'error'  ? 'Error al guardar' : 'Auto-guardado activo'}
+                </span>
+              </div>
+
+              <p className="text-xs" style={{ color:'#94a3b8' }}>
+                Los cambios se guardan automáticamente al activar o desactivar cada opción.
+              </p>
+
               <div className="space-y-3">
                 {[
                   { key:'sesiones'  as const, label:'Sesiones completadas',        desc:'Cuando un alumno completa una sesión'    },
@@ -293,26 +318,35 @@ export const Settings = () => {
                   { key:'alumnos'   as const, label:'Nuevas inscripciones',         desc:'Cuando un alumno se registra'           },
                   { key:'reportes'  as const, label:'Reportes semanales',           desc:'Resumen de actividad cada semana'       },
                 ].map((n) => (
-                  <div key={n.key} className="flex items-center justify-between p-4 rounded-xl"
+                  <div key={n.key} className="flex items-center justify-between p-4 rounded-xl transition-all duration-200"
                     style={{ background:'#f8fafc', border:'1px solid #f1f5f9' }}>
                     <div>
                       <p className="text-sm font-semibold" style={{ color:'#0f172a' }}>{n.label}</p>
                       <p className="text-xs mt-0.5" style={{ color:'#94a3b8' }}>{n.desc}</p>
                     </div>
-                    <button onClick={() => setNotifs((p) => ({ ...p, [n.key]: !p[n.key] }))}
-                      className="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0"
-                      style={{ background: notifs[n.key] ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : '#e2e8f0' }}>
+                    {/* Toggle — cada click auto-guarda */}
+                    <button
+                      onClick={() => toggleNotif(n.key)}
+                      className="relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-1"
+                      style={{ background: notifs[n.key] ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : '#e2e8f0' }}
+                      aria-label={`${notifs[n.key] ? 'Desactivar' : 'Activar'} ${n.label}`}
+                      aria-pressed={notifs[n.key]}>
                       <span className="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-300"
                         style={{ left: notifs[n.key] ? '24px' : '4px' }} />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end">
-                <button onClick={onSaveNotifications}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+
+              {/* Botón de guardado explícito (sincroniza con API) */}
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs" style={{ color:'#94a3b8' }}>
+                  Las preferencias persisten al refrescar la página.
+                </p>
+                <button onClick={onSaveNotifications} disabled={syncStatus === 'saving'}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  <Save size={15} /> Guardar preferencias
+                  <Save size={15} /> Sincronizar
                 </button>
               </div>
             </div>

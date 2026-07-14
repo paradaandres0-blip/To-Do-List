@@ -162,3 +162,21 @@ export const registerRequest = async (payload: RegisterPayload): Promise<{ messa
   const { data } = await api.post<{ message: string }>('/auth/register', payload);
   return data;
 };
+
+// ────────────────────────────────────────────
+// PATCH /users/me/notifications — guardar preferencias de notificaciones
+// ────────────────────────────────────────────
+export interface NotificationPrefs {
+  sesiones:  boolean;
+  programas: boolean;
+  alumnos:   boolean;
+  reportes:  boolean;
+}
+
+export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promise<void> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 300));
+    return; // en mock no hay backend, pero sí persistimos en localStorage
+  }
+  await api.patch('/users/me/notifications', prefs);
+};
