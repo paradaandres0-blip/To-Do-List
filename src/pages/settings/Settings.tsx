@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import useAuthStore from '../../store/authStore';
+import { updateProfileRequest } from '../../services/authService';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -18,7 +19,10 @@ export const Settings = () => {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const [tab,     setTab]     = useState('profile');
-  const [saved,   setSaved]   = useState(false);
+  
+  // Custom Toast State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [orgInfo, setOrgInfo] = useState<OrgInfo>({
     name: 'WorkFlow Academy',
@@ -65,28 +69,40 @@ export const Settings = () => {
     });
   }, [user, reset]);
 
-  const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
-  const onSaveProfile = (data: ProfileForm) => {
-    if (user) {
-      setUser({ ...user, ...data });
+  const onSaveProfile = async (data: ProfileForm) => {
+    setIsSaving(true);
+    try {
+      const updatedUser = await updateProfileRequest(data);
+      if (user) {
+        setUser({ ...user, ...updatedUser });
+      }
+      showToast('Cambios guardados correctamente', 'success');
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || 'Error de red al conectar con el servidor';
+      showToast(errMsg, 'error');
+    } finally {
+      setIsSaving(false);
     }
-    showSaved();
   };
 
   const onSaveSecurity = (data: PasswordForm) => {
     console.log('Cambiar contraseña frontend:', data);
-    showSaved();
+    showToast('Contraseña actualizada (Simulado)', 'success');
   };
 
   const onSaveNotifications = () => {
     localStorage.setItem('wf_notifs', JSON.stringify(notifs));
-    showSaved();
+    showToast('Preferencias guardadas correctamente', 'success');
   };
 
   const onSaveOrganization = () => {
     localStorage.setItem('wf_org', JSON.stringify(orgInfo));
-    showSaved();
+    showToast('Organización guardada correctamente', 'success');
   };
 
   const updateOrgField = (field: keyof OrgInfo, value: string) => {
@@ -109,10 +125,17 @@ export const Settings = () => {
       </div>
 
       {/* Toast guardado */}
-      {saved && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg"
-          style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-          ✓ Cambios guardados correctamente
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-300"
+          style={{
+            background: toast.type === 'success'
+              ? 'linear-gradient(135deg,#10b981,#059669)'
+              : 'linear-gradient(135deg,#ef4444,#dc2626)',
+            border: toast.type === 'success'
+              ? '1px solid rgba(16,185,129,0.2)'
+              : '1px solid rgba(239,68,68,0.2)'
+          }}>
+          {toast.type === 'success' ? '✓' : '⚠️'} {toast.message}
         </div>
       )}
 
@@ -178,10 +201,22 @@ export const Settings = () => {
               </div>
 
               <div className="flex justify-end">
-                <button type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+                <button type="submit" disabled={isSaving}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  <Save size={15} /> Guardar cambios
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white animate-infinite" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={15} /> Guardar cambios
+                    </>
+                  )}
                 </button>
               </div>
             </form>
