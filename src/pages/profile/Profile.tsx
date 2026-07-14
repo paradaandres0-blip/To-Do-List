@@ -1,4 +1,6 @@
-import { User, Mail, Phone, MapPin, Shield, Edit3, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, Edit3, Camera, Loader } from 'lucide-react';
+import useAuthStore from '../../store/authStore';
+import { useAvatarUpload } from '../../hooks/useAvatarUpload';
 
 const ACTIVITY = [
   { action: 'Aprobó sesión "Rutina de Fuerza Nivel 2"',  time: 'Hace 2 horas'  },
@@ -7,7 +9,18 @@ const ACTIVITY = [
   { action: 'Actualizó módulo "Mindfulness Avanzado"',   time: 'Hace 2 días'   },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Super Admin',
+  instructor: 'Instructor',
+  student: 'Estudiante',
+};
+
 export const Profile = () => {
+  const user = useAuthStore((s) => s.user);
+  const { avatarUrl, isUploading, uploadError, inputRef, openFilePicker, handleFileChange } = useAvatarUpload();
+
+  const initials = user?.name?.charAt(0)?.toUpperCase() ?? 'A';
+
   return (
     <div className="w-full space-y-6 max-w-4xl">
 
@@ -29,31 +42,69 @@ export const Profile = () => {
           className="bg-white rounded-2xl p-6 flex flex-col items-center text-center"
           style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
         >
-          {/* Avatar */}
+          {/* Avatar con botón de cámara */}
           <div className="relative mb-4">
-            <div
-              className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-3xl font-extrabold"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-            >
-              A
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="w-24 h-24 rounded-2xl object-cover"
+                style={{ border: '3px solid rgba(124,58,237,0.2)' }}
+              />
+            ) : (
+              <div
+                className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-3xl font-extrabold"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              >
+                {initials}
+              </div>
+            )}
+
+            {/* Overlay de carga */}
+            {isUploading && (
+              <div className="absolute inset-0 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.5)' }}>
+                <Loader size={20} className="text-white animate-spin" />
+              </div>
+            )}
+
+            {/* Botón cámara */}
             <button
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center text-white transition-opacity hover:opacity-80"
+              onClick={openFilePicker}
+              disabled={isUploading}
+              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center text-white transition-opacity hover:opacity-80 disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              title="Cambiar foto de perfil"
             >
               <Camera size={14} />
             </button>
+
+            {/* Input oculto */}
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
 
-          <h2 className="text-lg font-bold" style={{ color: '#0f172a' }}>Julián Parada</h2>
-          <p className="text-sm" style={{ color: '#64748b' }}>Administrador del Sistema</p>
+          {/* Error de upload */}
+          {uploadError && (
+            <p className="text-xs text-red-500 mb-2 max-w-[200px]">{uploadError}</p>
+          )}
+
+          <h2 className="text-lg font-bold" style={{ color: '#0f172a' }}>{user?.name ?? 'Usuario'}</h2>
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Sin rol'}
+          </p>
 
           {/* Badge rol */}
           <span
             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
             style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}
           >
-            <Shield size={11} /> Super Admin
+            <Shield size={11} /> {user?.role ? ROLE_LABELS[user.role] ?? user.role : 'Sin rol'}
           </span>
 
           {/* Stats */}
@@ -91,10 +142,10 @@ export const Profile = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { icon: User,    label: 'Nombre completo', value: 'Julián Parada'          },
-                { icon: Mail,    label: 'Correo',          value: 'admin@taskedu.com'       },
-                { icon: Phone,   label: 'Teléfono',        value: '+57 300 123 4567'        },
-                { icon: MapPin,  label: 'Ciudad',          value: 'Bogotá, Colombia'        },
+                { icon: User,    label: 'Nombre completo', value: user?.name  ?? '—' },
+                { icon: Mail,    label: 'Correo',          value: user?.email ?? '—' },
+                { icon: Phone,   label: 'Teléfono',        value: user?.phone ?? '—' },
+                { icon: MapPin,  label: 'Ciudad',          value: user?.city  ?? '—' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
                   <div
@@ -137,3 +188,4 @@ export const Profile = () => {
     </div>
   );
 };
+
