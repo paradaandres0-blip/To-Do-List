@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import type { AuthUser, LoginPayload } from '../services/authService';
 import { getMeRequest, loginRequest, logoutRequest } from '../services/authService';
 
+import api from '../services/api';
+
 // ── Tipos del store ──
 interface AuthState {
   user:        AuthUser | null;
@@ -56,6 +58,9 @@ const useAuthStore = create<AuthState>()(
         await logoutRequest();
         localStorage.removeItem('wf_token');
         localStorage.removeItem('wf_refresh');
+        if (api.defaults.headers.common) {
+          delete api.defaults.headers.common['Authorization'];
+        }
         set({ user: null, token: null, refreshToken: null, isLoading: false, error: null });
       },
 

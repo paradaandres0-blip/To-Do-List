@@ -91,3 +91,16 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
   const { data } = await api.post<RefreshResponse>('/auth/refresh', { refreshToken });
   return data;
 };
+
+// ────────────────────────────────────────────
+// PATCH /users/me  — actualizar datos del usuario
+// ────────────────────────────────────────────
+export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
+  if (IS_MOCK) {
+    await new Promise((r) => setTimeout(r, 600));
+    return { ...MOCK_USER, ...payload };
+  }
+
+  const { data } = await api.patch<AuthUser>('/users/me', payload);
+  return data;
+};
