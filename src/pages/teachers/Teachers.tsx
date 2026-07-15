@@ -5,9 +5,9 @@ import {
   GraduationCap, Plus, Search, Pencil, Trash2, Eye,
   Mail, Phone, MapPin, Filter, X,
 } from 'lucide-react';
-import { Button } from '../../componets/common/Button/Button';
-import { Input } from '../../componets/common/Input/Input';
-import { Modal } from '../../componets/common/Modal/Modal';
+import { Button } from '../../components/common/Button/Button';
+import { Input } from '../../components/common/Input/Input';
+import { Modal } from '../../components/common/Modal/Modal';
 import type { Teacher, TeacherFormValues, TeacherStatus } from '../../types/teacher.types';
 import { TEACHER_SPECIALTY_OPTIONS } from '../../types/teacher.types';
 import {
