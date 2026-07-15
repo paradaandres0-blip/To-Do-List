@@ -5,21 +5,23 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
+import useAuthStore from '../../../store/authStore';
 
 const NAV_ITEMS = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard'   },
-  { to: '/courses',       icon: BookOpen,         label: 'Programas'   },
-  { to: '/modules',       icon: Layers,           label: 'Módulos'     },
-  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones'    },
-  { to: '/students',      icon: Users,            label: 'Alumnos'     },
-  { to: '/teachers',      icon: GraduationCap,    label: 'Docentes'    },
-  { to: '/groups',        icon: Users,            label: 'Grupos'      },
-  { to: '/organizations', icon: Building2,        label: 'Centros'     },
-  { to: '/reports',       icon: BarChart2,        label: 'Reportes'    },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin'] },
+  { to: '/courses',       icon: BookOpen,         label: 'Programas',   roles: ['admin'] },
+  { to: '/modules',       icon: Layers,           label: 'Módulos',     roles: ['admin'] },
+  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones',    roles: ['admin'] },
+  { to: '/students',      icon: Users,            label: 'Alumnos',     roles: ['admin'] },
+  { to: '/teachers',      icon: GraduationCap,    label: 'Docentes',    roles: ['admin'] },
+  { to: '/groups',        icon: Users,            label: 'Grupos',      roles: ['admin'] },
+  { to: '/organizations', icon: Building2,        label: 'Centros',     roles: ['admin'] },
+  { to: '/reports',       icon: BarChart2,        label: 'Reportes',    roles: ['admin'] },
 ];
 
 export default function Sidebar() {
   const { handleLogout: hookLogout } = useAuth();
+  const user = useAuthStore((s) => s.user);
 
   const handleLogout = async () => {
     await hookLogout();
@@ -50,7 +52,7 @@ export default function Sidebar() {
           Menú Principal
         </p>
 
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {NAV_ITEMS.filter((item) => user && item.roles.includes(user.role)).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
