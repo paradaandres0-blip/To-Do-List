@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle } from 'lucide-react';
+import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
@@ -13,6 +13,10 @@ interface Student {
 interface StudentForm {
   name: string; email: string; phone: string;
   program: string; group: string; status: StudentStatus;
+}
+interface AssignForm {
+  program: string;
+  group: string;
 }
 
 const INITIAL: Student[] = [
@@ -66,8 +70,10 @@ export const Students = () => {
   const [editing,      setEditing]      = useState<Student | null>(null);
   const [deleteId,     setDeleteId]     = useState<string | null>(null);
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
+  const [assignModal,  setAssignModal]  = useState<Student | null>(null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>();
+  const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>();
 
   const filtered = useMemo(() => students.filter((s) => {
     const q = search.toLowerCase();
@@ -81,6 +87,20 @@ export const Students = () => {
     setEditing(s);
     (['name','email','phone','program','group','status'] as const).forEach((k) => setValue(k, s[k] as never));
     setModalOpen(true);
+  };
+  const openAssign = (s: Student) => {
+    setAssignModal(s);
+    resetAssign({ program: s.program, group: s.group });
+  };
+
+  const onAssign = (data: AssignForm) => {
+    if (assignModal) {
+      setStudents((p) => p.map((st) => 
+        st.id === assignModal.id ? { ...st, program: data.program, group: data.group } : st
+      ));
+      setAssignModal(null);
+      resetAssign();
+    }
   };
 
   const onSubmit = (data: StudentForm) => {
@@ -271,6 +291,10 @@ export const Students = () => {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1.5">
+                    <button onClick={(e) => { e.stopPropagation(); openAssign(s); }}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                      <UserPlus size={13} style={{ color:'#3b82f6' }} />
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); openEdit(s); }}
                       className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors">
                       <Pencil size={13} style={{ color:'#7c3aed' }} />
@@ -426,6 +450,46 @@ export const Students = () => {
               style={{ background:'linear-gradient(135deg,#ef4444,#dc2626)' }}>Eliminar</button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal asignar a grupo/programa */}
+      <Modal isOpen={!!assignModal} onClose={() => { setAssignModal(null); resetAssign(); }} title="Asignar a Grupo/Programa">
+        {assignModal && (
+          <form onSubmit={handleAssign(onAssign)} className="space-y-4">
+            <div className="p-3 rounded-xl" style={{ background:'#f8fafc' }}>
+              <p className="text-sm font-semibold" style={{ color:'#0f172a' }}>{assignModal.name}</p>
+              <p className="text-xs" style={{ color:'#94a3b8' }}>{assignModal.email}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Programa</label>
+              <select className={ic()} style={is(!!assignErrors.program)}
+                {...registerAssign('program', { required:'Obligatorio' })}>
+                <option value="">Seleccionar...</option>
+                {PROGRAMS.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              {assignErrors.program && <p className="text-xs text-red-500">{assignErrors.program.message}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Grupo</label>
+              <select className={ic()} style={is(!!assignErrors.group)}
+                {...registerAssign('group', { required:'Obligatorio' })}>
+                <option value="">Seleccionar...</option>
+                {GROUPS.map((g) => <option key={g}>{g}</option>)}
+              </select>
+              {assignErrors.group && <p className="text-xs text-red-500">{assignErrors.group.message}</p>}
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
+              <button type="button" onClick={() => { setAssignModal(null); resetAssign(); }}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all"
+                style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
+              <button type="submit"
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+                style={{ background:'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
+                Asignar
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

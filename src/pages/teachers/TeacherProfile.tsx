@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   GraduationCap, ArrowLeft, Mail, Phone, MapPin,
-  Calendar, Pencil, Loader2,
+  Calendar, Pencil, Loader2, Users,
 } from 'lucide-react';
 import { Button } from '../../componets/common/Button/Button';
 import type { Teacher } from '../../types/teacher.types';
 import { getTeacherByIdRequest } from '../../services/teacherService';
+import useStudentStore from '../../store/studentStore';
 
 /**
  * Vista de perfil de docente.
@@ -19,6 +20,7 @@ export const TeacherProfile = () => {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { getByTeacherId } = useStudentStore();
 
   useEffect(() => {
     if (!id) return;
@@ -173,6 +175,59 @@ export const TeacherProfile = () => {
               Actualizado {formatDate(teacher.updatedAt)}
             </p>
           </div>
+        </div>
+
+        {/* Estudiantes asignados */}
+        <div className="px-6 pb-6">
+          <h2 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: '#94a3b8' }}>
+            Estudiantes Asignados
+          </h2>
+          {(() => {
+            const assignedStudents = id ? getByTeacherId(id) : [];
+            if (assignedStudents.length === 0) {
+              return (
+                <div className="text-center py-8" style={{ color: '#94a3b8' }}>
+                  <Users size={32} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Sin estudiantes asignados</p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-2">
+                {assignedStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className="flex items-center justify-between p-3 rounded-xl"
+                    style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                      >
+                        {student.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: '#0f172a' }}>{student.name}</p>
+                        <p className="text-xs" style={{ color: '#64748b' }}>{student.program} • {student.group}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                        student.status === 'Activo'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : student.status === 'Pendiente'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}
+                    >
+                      {student.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

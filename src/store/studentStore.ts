@@ -9,6 +9,7 @@ interface StudentState {
   getPendingRequests: () => Student[];
   acceptRequest: (id: string) => void;
   rejectRequest: (id: string) => void;
+  assignToGroup: (id: string, program: string, group: string, teacherId?: string) => void;
 }
 
 const daysAgo = (days: number) => {
@@ -227,6 +228,14 @@ const useStudentStore = create<StudentState>((set, get) => ({
   rejectRequest: (id) => {
     set((state) => ({
       students: state.students.filter((s) => s.id !== id),
+    }));
+  },
+
+  assignToGroup: (id, program, group, teacherId) => {
+    set((state) => ({
+      students: state.students.map((s) =>
+        s.id === id ? { ...s, program, group, teacherId } : s,
+      ),
     }));
   },
 }));
