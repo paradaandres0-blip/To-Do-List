@@ -10,4 +10,6 @@ export interface Student {
   progress:  number; // 0-100
   joinedAt:  string;
   avatar?:   string;
+  /** Docente asignado — FK a teachers.id (PostgreSQL futuro) */
+  teacherId?: string;
 }
