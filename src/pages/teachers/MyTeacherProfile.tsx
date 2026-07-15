@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock, Book,
+  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock, Book, User,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useStudentStore from '../../store/studentStore';
@@ -289,6 +289,58 @@ export const MyTeacherProfile = () => {
                 {program}
               </span>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Mis estudiantes */}
+      <div
+        className="bg-white rounded-2xl p-6"
+        style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+      >
+        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: '#94a3b8' }}>
+          <User size={14} style={{ color: '#7c3aed' }} />
+          Mis estudiantes
+        </h3>
+        {teacherStudents.length === 0 ? (
+          <p className="text-sm text-center py-4" style={{ color: '#94a3b8' }}>
+            No tienes estudiantes asignados
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {teacherStudents.slice(0, 5).map((student) => (
+              <div
+                key={student.id}
+                className="flex items-center justify-between p-3 rounded-xl"
+                style={{ background: 'rgba(124,58,237,0.04)', border: '1px solid rgba(124,58,237,0.1)' }}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>
+                    {student.name}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                    {student.program} · {student.group}
+                  </p>
+                </div>
+                <span
+                  className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ml-3 flex-shrink-0"
+                  style={
+                    student.status === 'Activo'
+                      ? { background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }
+                      : student.status === 'Pendiente'
+                      ? { background: '#fef3c7', color: '#d97706', borderColor: '#fde68a' }
+                      : { background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }
+                  }
+                >
+                  {student.status}
+                </span>
+              </div>
+            ))}
+            {teacherStudents.length > 5 && (
+              <p className="text-xs text-center pt-2" style={{ color: '#94a3b8' }}>
+                +{teacherStudents.length - 5} estudiantes más
+              </p>
+            )}
           </div>
         )}
       </div>
