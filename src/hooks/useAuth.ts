@@ -14,7 +14,9 @@ export const useAuth = () => {
     async (email: string, password: string) => {
       clearError();
       await login({ email, password });
-      navigate('/dashboard', { replace: true });
+      const role = useAuthStore.getState().user?.role;
+      // Docente → tablero Trello; admin → dashboard completo
+      navigate(role === 'instructor' ? '/docente' : '/dashboard', { replace: true });
     },
     [login, navigate, clearError]
   );

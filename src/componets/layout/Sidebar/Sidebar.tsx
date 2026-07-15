@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   Dumbbell, LayoutDashboard, BookOpen, Users, User,
   ClipboardList, Building2, BarChart2, LogOut, Settings, Layers,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/modules',       icon: Layers,           label: 'Módulos'     },
   { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones'    },
   { to: '/students',      icon: Users,            label: 'Alumnos'     },
+  { to: '/teachers',      icon: GraduationCap,    label: 'Docentes'    },
   { to: '/groups',        icon: Users,            label: 'Grupos'      },
   { to: '/organizations', icon: Building2,        label: 'Centros'     },
   { to: '/reports',       icon: BarChart2,        label: 'Reportes'    },

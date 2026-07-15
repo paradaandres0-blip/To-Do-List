@@ -14,6 +14,8 @@ export interface AuthUser {
   avatar?: string;
   phone?:  string;
   city?:   string;
+  /** Solo docentes — enlaza con teachers.id (portal /docente) */
+  teacherId?: string;
 }
 
 export interface LoginResponse {
@@ -26,15 +28,60 @@ export interface RefreshResponse {
   token: string;
 }
 
-// ── Usuario mock para desarrollo sin backend ──
-const MOCK_USER: AuthUser = {
+// ── Usuarios mock (admin + docentes) — listos para reemplazar por Auth + PG ──
+const MOCK_ADMIN: AuthUser = {
   id:    '1',
   name:  'Julián Parada',
   email: 'admin@workflow.com',
   role:  'admin',
 };
 
+/** Credenciales demo docente → mismo email que en teacherService */
+const MOCK_TEACHER_ACCOUNTS: Array<{
+  email: string;
+  password: string;
+  user: AuthUser;
+}> = [
+  {
+    email: 'ana.gomez@workflow.academy',
+    password: 'docente123',
+    user: {
+      id: 'u-t1',
+      name: 'Ana Gómez',
+      email: 'ana.gomez@workflow.academy',
+      role: 'instructor',
+      teacherId: 't1',
+      phone: '+57 300 555 0101',
+      city: 'Bogotá',
+    },
+  },
+  {
+    email: 'carlos.ruiz@workflow.academy',
+    password: 'docente123',
+    user: {
+      id: 'u-t2',
+      name: 'Carlos Ruiz',
+      email: 'carlos.ruiz@workflow.academy',
+      role: 'instructor',
+      teacherId: 't2',
+      phone: '+57 310 555 0202',
+      city: 'Medellín',
+    },
+  },
+];
+
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
+
+const readPersistedUser = (): AuthUser | null => {
+  try {
+    const raw = localStorage.getItem('wf_auth');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { user?: AuthUser } };
+    return parsed.state?.user ?? null;
+  } catch {
+    return null;
+  }
+};
 
 // ────────────────────────────────────────────
 // POST /auth/login
@@ -43,14 +90,39 @@ export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse
   // ── Modo mock: simula respuesta del backend ──
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, 800)); // simula latencia
-    if (!payload.email || payload.password.length < 6) {
-      throw { response: { data: { message: 'Credenciales inválidas.' } } };
+    const email = payload.email.trim().toLowerCase();
+    const password = payload.password;
+
+    // Login docente (credenciales específicas)
+    const teacherAccount = MOCK_TEACHER_ACCOUNTS.find(
+      (a) => a.email.toLowerCase() === email && a.password === password,
+    );
+    if (teacherAccount) {
+      return {
+        token: 'mock-jwt-instructor-' + Date.now(),
+        user: { ...teacherAccount.user },
+        refreshToken: 'mock-refresh-instructor-' + Date.now(),
+      };
     }
-    return {
-      token: 'mock-jwt-token-' + Date.now(),
-      user:  { ...MOCK_USER, email: payload.email },
-      refreshToken: 'mock-refresh-token-' + Date.now(),
-    };
+
+    // Login admin (cualquier pass ≥ 6 con email admin, o admin@ + pass)
+    if (
+      email === MOCK_ADMIN.email &&
+      password.length >= 6
+    ) {
+      return {
+        token: 'mock-jwt-admin-' + Date.now(),
+        user: { ...MOCK_ADMIN },
+        refreshToken: 'mock-refresh-admin-' + Date.now(),
+      };
+    }
+
+    // Fallback: si email parece docente pero pass incorrecta
+    if (MOCK_TEACHER_ACCOUNTS.some((a) => a.email.toLowerCase() === email)) {
+      throw { response: { data: { message: 'Contraseña incorrecta para el docente.' } } };
+    }
+
+    throw { response: { data: { message: 'Credenciales inválidas.' } } };
   }
 
   // ── Modo real: llama al backend ──
@@ -74,7 +146,11 @@ export const logoutRequest = async (): Promise<void> => {
 // GET /auth/me  — refrescar datos del usuario
 // ────────────────────────────────────────────
 export const getMeRequest = async (): Promise<AuthUser> => {
-  if (IS_MOCK) return MOCK_USER;
+  if (IS_MOCK) {
+    const persisted = readPersistedUser();
+    if (persisted) return persisted;
+    return { ...MOCK_ADMIN };
+  }
   const { data } = await api.get<AuthUser>('/auth/me');
   return data;
 };
@@ -98,7 +174,8 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
 export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, 600));
-    return { ...MOCK_USER, ...payload };
+    const base = readPersistedUser() ?? MOCK_ADMIN;
+    return { ...base, ...payload };
   }
 
   const { data } = await api.patch<AuthUser>('/users/me', payload);
