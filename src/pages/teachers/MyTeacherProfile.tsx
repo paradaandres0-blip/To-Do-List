@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock,
+  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock, Book,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useStudentStore from '../../store/studentStore';
@@ -30,6 +30,10 @@ export const MyTeacherProfile = () => {
     teacherStudents.reduce((sum, s) => sum + (s.sessions || 0), 0), 
     [teacherStudents]
   );
+  const teacherPrograms = useMemo(() => {
+    const programs = new Set(teacherStudents.map((s) => s.program));
+    return Array.from(programs).slice(0, 5);
+  }, [teacherStudents]);
 
   useEffect(() => {
     const load = async () => {
@@ -255,6 +259,38 @@ export const MyTeacherProfile = () => {
           <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{teacher.specialties.length}</p>
           <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Especialidades</p>
         </div>
+      </div>
+
+      {/* Cursos asignados al docente */}
+      <div
+        className="bg-white rounded-2xl p-6"
+        style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+      >
+        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: '#94a3b8' }}>
+          <Book size={14} style={{ color: '#7c3aed' }} />
+          Mis cursos
+        </h3>
+        {teacherPrograms.length === 0 ? (
+          <p className="text-sm text-center py-4" style={{ color: '#94a3b8' }}>
+            No tienes cursos asignados
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {teacherPrograms.map((program) => (
+              <span
+                key={program}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full border"
+                style={{
+                  background: 'rgba(124,58,237,0.08)',
+                  color: '#7c3aed',
+                  borderColor: 'rgba(124,58,237,0.2)',
+                }}
+              >
+                {program}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal de edición */}
