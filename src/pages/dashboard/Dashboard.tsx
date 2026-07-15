@@ -1,20 +1,23 @@
 import { motion } from 'framer-motion';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, BookOpen, CheckCircle2, TrendingUp,
   Clock, MoreVertical, Download, ArrowUpRight,
   Dumbbell, Apple, Brain, Flame, RefreshCw, BarChart3,
+  FileSpreadsheet, FileText, ExternalLink, ChevronDown,
 } from 'lucide-react';
 import useMetricsStore from '../../store/metricsStore';
 import useTaskStore, { formatRelativeTime } from '../../store/taskStore';
 import useStudentStore from '../../store/studentStore';
+import useReportStore from '../../store/reportStore';
 import {
   buildMonthlySessionsChart,
   chartMiniStats,
   chartPeriodLabel,
   currentMonthBadge,
 } from '../../utils/dashboardData';
+import { exportSessionsCsv, exportSessionsPdf } from '../../utils/exportReport';
 
 const statusStyle: Record<string, string> = {
   'Aprobada':       'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -44,9 +47,34 @@ export const Dashboard = () => {
   const getRecent = useTaskStore((s) => s.getRecent);
   const students = useStudentStore((s) => s.students);
   const getTopBySessions = useStudentStore((s) => s.getTopBySessions);
+  const reportSessions = useReportStore((s) => s.sessions);
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Actividad reciente real desde sesiones/tareas del store
   const recent = useMemo(() => getRecent(4), [getRecent, tasks]);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!exportMenuRef.current?.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [exportOpen]);
+
+  const handleExportCsv = () => {
+    exportSessionsCsv(reportSessions, `reporte-dashboard-${new Date().toISOString().slice(0, 10)}.csv`);
+    setExportOpen(false);
+  };
+
+  const handleExportPdf = () => {
+    exportSessionsPdf(reportSessions, currentMonthBadge());
+    setExportOpen(false);
+  };
 
   // Gráfica y top alumnos: data falsa dinámica (sin año 2025 hardcodeado)
   const chartBars = useMemo(() => buildMonthlySessionsChart(7), []);
@@ -117,11 +145,61 @@ export const Dashboard = () => {
             title="Actualizar métricas">
             <RefreshCw size={15} style={{ color:'#64748b' }} className={isLoading ? 'animate-spin' : ''} />
           </button>
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-            style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-            <Download size={15} /> Exportar Reporte
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportOpen((o) => !o)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              aria-expanded={exportOpen}
+              aria-haspopup="menu"
+            >
+              <Download size={15} /> Exportar Reporte
+              <ChevronDown size={14} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {exportOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-56 rounded-xl bg-white py-1.5 z-20"
+                style={{ border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)' }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleExportCsv}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  style={{ color: '#0f172a' }}
+                >
+                  <FileSpreadsheet size={15} style={{ color: '#059669' }} />
+                  Descargar CSV
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleExportPdf}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  style={{ color: '#0f172a' }}
+                >
+                  <FileText size={15} style={{ color: '#7c3aed' }} />
+                  Exportar PDF
+                </button>
+                <div className="my-1.5" style={{ borderTop: '1px solid #f1f5f9' }} />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    navigate('/reports');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  style={{ color: '#0f172a' }}
+                >
+                  <ExternalLink size={15} style={{ color: '#2563eb' }} />
+                  Abrir Reportes
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
 

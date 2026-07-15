@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BarChart2, TrendingUp, Users, BookOpen, CheckCircle2, Download } from 'lucide-react';
 import useReportStore from '../../store/reportStore';
+import { exportSessionsCsv, exportSessionsPdf } from '../../utils/exportReport';
 
 const FORMAT_DATE = (value: string) => new Date(value).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -76,58 +77,15 @@ export const Reports = () => {
   }, [programs, students]);
 
   const exportCsv = () => {
-    const header = ['Fecha', 'Curso', 'Estado', 'Duración (min)'];
-    const rows = filteredSessions.map((session) => [session.date, session.course, session.status, String(session.duration)]);
-    const csv = [header, ...rows].map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'reportes-sesiones.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+    exportSessionsCsv(filteredSessions, 'reportes-sesiones.csv');
   };
 
   const exportPdf = () => {
-    const rows = filteredSessions.map((session) => `
-      <tr>
-        <td style="padding:8px;border:1px solid #eceff1">${FORMAT_DATE(session.date)}</td>
-        <td style="padding:8px;border:1px solid #eceff1">${session.course}</td>
-        <td style="padding:8px;border:1px solid #eceff1">${session.status}</td>
-        <td style="padding:8px;border:1px solid #eceff1">${session.duration} min</td>
-      </tr>
-    `).join('');
-
-    const html = `
-      <html>
-        <head>
-          <title>Reporte de Sesiones</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; padding: 24px; color: #0f172a;">
-          <h1>Reporte de Sesiones</h1>
-          <p>Periodo: ${fromDate && toDate ? `${FORMAT_DATE(fromDate)} - ${FORMAT_DATE(toDate)}` : 'Todos los periodos'}</p>
-          <table style="width:100%; border-collapse: collapse; margin-top:16px;">
-            <thead>
-              <tr>
-                <th style="padding:8px;border:1px solid #cbd5e1;background:#f8fafc;text-align:left">Fecha</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;background:#f8fafc;text-align:left">Curso</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;background:#f8fafc;text-align:left">Estado</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;background:#f8fafc;text-align:left">Duración</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <p style="margin-top:24px; font-size:0.95rem; color: #475569;">Sesiones totales: ${filteredSessions.length}</p>
-        </body>
-      </html>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    const period =
+      fromDate && toDate
+        ? `${FORMAT_DATE(fromDate)} - ${FORMAT_DATE(toDate)}`
+        : 'Todos los periodos';
+    exportSessionsPdf(filteredSessions, period);
   };
 
   return (
