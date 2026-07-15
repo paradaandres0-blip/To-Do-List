@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock,
 } from 'lucide-react';
@@ -22,8 +22,14 @@ export const MyTeacherProfile = () => {
   const [formError, setFormError] = useState<string | null>(null);
   
   const getByTeacherId = useStudentStore((s) => s.getByTeacherId);
-  const teacherStudents = teacher ? getByTeacherId(teacher.id) : [];
-  const totalSessions = teacherStudents.reduce((sum, s) => sum + s.sessions, 0);
+  const teacherStudents = useMemo(() => 
+    teacher ? getByTeacherId(teacher.id) : [], 
+    [teacher, getByTeacherId]
+  );
+  const totalSessions = useMemo(() => 
+    teacherStudents.reduce((sum, s) => sum + (s.sessions || 0), 0), 
+    [teacherStudents]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -70,6 +76,20 @@ export const MyTeacherProfile = () => {
 
   const handleSave = async () => {
     if (!teacher) return;
+    
+    // Validación de campos obligatorios
+    if (!editForm.name.trim() || !editForm.email.trim() || !editForm.phone.trim() || !editForm.city.trim()) {
+      setFormError('Todos los campos son obligatorios');
+      return;
+    }
+
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editForm.email)) {
+      setFormError('El formato del correo electrónico no es válido');
+      return;
+    }
+
     setIsSaving(true);
     setFormError(null);
     try {
