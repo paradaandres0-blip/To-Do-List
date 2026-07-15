@@ -20,6 +20,7 @@ import {
 const STATUS_STYLE: Record<TeacherStatus, string> = {
   Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
   Inactivo: 'bg-slate-50 text-slate-500 border-slate-200',
+  Licencia: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 export const Teachers = () => {
@@ -85,6 +86,7 @@ export const Teachers = () => {
       total: teachers.length,
       activos: teachers.filter((t) => t.status === 'Activo').length,
       inactivos: teachers.filter((t) => t.status === 'Inactivo').length,
+      licencia: teachers.filter((t) => t.status === 'Licencia').length,
     }),
     [teachers],
   );
@@ -188,11 +190,12 @@ export const Teachers = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Total', value: counts.total, color: '#7c3aed' },
           { label: 'Activos', value: counts.activos, color: '#059669' },
           { label: 'Inactivos', value: counts.inactivos, color: '#94a3b8' },
+          { label: 'Licencia', value: counts.licencia, color: '#f59e0b' },
         ].map((k) => (
           <div
             key={k.label}
@@ -229,6 +232,7 @@ export const Teachers = () => {
             <option value="Todos">Todos</option>
             <option value="Activo">Activos</option>
             <option value="Inactivo">Inactivos</option>
+            <option value="Licencia">Licencia</option>
           </select>
         </div>
       </div>
@@ -472,6 +476,7 @@ export const Teachers = () => {
             >
               <option value="Activo">Activo</option>
               <option value="Inactivo">Inactivo</option>
+              <option value="Licencia">Licencia</option>
             </select>
           </div>
 
