@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, BookOpen, CheckCircle2, TrendingUp,
@@ -7,19 +7,13 @@ import {
   Dumbbell, Apple, Brain, Flame, RefreshCw,
 } from 'lucide-react';
 import useMetricsStore from '../../store/metricsStore';
-
-// ── Actividad reciente ──
-const RECENT = [
-  { id: 1, title: 'Plan Nutricional Semana 3',    module: 'Nutrición Avanzada',   status: 'En revisión',   time: 'Hace 2 h'  },
-  { id: 2, title: 'Rutina de Fuerza — Nivel 2',   module: 'Entrenamiento Físico', status: 'Aprobada',      time: 'Hace 5 h'  },
-  { id: 3, title: 'Meditación Guiada 10 min',     module: 'Bienestar Mental',     status: 'En desarrollo', time: 'Hace 1 día' },
-  { id: 4, title: 'Evaluación Composición Corp.', module: 'Seguimiento Corporal', status: 'En revisión',   time: 'Hace 2 días'},
-];
+import useTaskStore, { formatRelativeTime } from '../../store/taskStore';
 
 const statusStyle: Record<string, string> = {
   'Aprobada':       'bg-emerald-50 text-emerald-700 border-emerald-200',
   'En revisión':    'bg-amber-50   text-amber-700   border-amber-200',
   'En desarrollo':  'bg-blue-50    text-blue-700    border-blue-200',
+  'Pendiente':      'bg-slate-50   text-slate-500   border-slate-200',
 };
 
 // ── Categorías de programas ──
@@ -59,6 +53,11 @@ const fade = (delay = 0) => ({
 export const Dashboard = () => {
   const navigate = useNavigate();
   const { metrics, isLoading, error, fetchMetrics, refreshMetrics } = useMetricsStore();
+  const tasks = useTaskStore((s) => s.tasks);
+  const getRecent = useTaskStore((s) => s.getRecent);
+
+  // Actividad reciente real desde sesiones/tareas del store
+  const recent = useMemo(() => getRecent(4), [getRecent, tasks]);
 
   // Carga métricas al montar (respeta caché de 1 min)
   useEffect(() => {
@@ -278,25 +277,53 @@ export const Dashboard = () => {
               <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Últimas sesiones y tareas</p>
             </div>
           </div>
-          <div className="space-y-4">
-            {RECENT.map((item) => (
-              <div key={item.id} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
-                  <Clock size={14} style={{ color: '#7c3aed' }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{item.title}</p>
-                  <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{item.module}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[item.status] ?? ''}`}>
-                      {item.status}
-                    </span>
-                    <span className="text-[11px]" style={{ color: '#cbd5e1' }}>{item.time}</span>
+          <div className="space-y-2">
+            {recent.length === 0 ? (
+              <p className="text-sm py-6 text-center" style={{ color: '#94a3b8' }}>
+                No hay actividad reciente
+              </p>
+            ) : (
+              recent.map((item) => (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/tasks?id=${item.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/tasks?id=${item.id}`);
+                    }
+                  }}
+                  className="w-full flex items-start gap-3 p-2 -mx-2 rounded-xl text-left transition-colors hover:bg-slate-50 cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
+                    <Clock size={14} style={{ color: '#7c3aed' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{item.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{item.course}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/tasks?status=${encodeURIComponent(item.status)}`);
+                        }}
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border hover:opacity-80 cursor-pointer ${statusStyle[item.status] ?? ''}`}
+                        title="Ver sesiones con este estado"
+                      >
+                        {item.status}
+                      </button>
+                      <span className="text-[11px]" style={{ color: '#cbd5e1' }}>
+                        {formatRelativeTime(item.updatedAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <button
             onClick={() => navigate('/tasks')}
