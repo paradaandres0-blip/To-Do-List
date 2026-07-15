@@ -159,10 +159,15 @@ export const Teachers = () => {
     if (!deleteId) return;
     try {
       await deleteTeacherRequest(deleteId);
-      setTeachers((prev) => prev.filter((t) => t.id !== deleteId));
+      // Soft-delete: actualizar el status localmente en lugar de filtrar
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t.id === deleteId ? { ...t, status: 'Inactivo' as TeacherStatus, updatedAt: new Date().toISOString() } : t
+        )
+      );
     } catch (err) {
       console.error(err);
-      alert('No se pudo eliminar el docente.');
+      alert('No se pudo desactivar el docente.');
     } finally {
       setDeleteId(null);
     }
@@ -327,7 +332,7 @@ export const Teachers = () => {
                       </button>
                       <button
                         type="button"
-                        title="Eliminar"
+                        title="Desactivar"
                         onClick={() => setDeleteId(teacher.id)}
                         className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                       >
@@ -491,22 +496,22 @@ export const Teachers = () => {
         </form>
       </Modal>
 
-      {/* Confirmar eliminación */}
+      {/* Confirmar desactivación */}
       <Modal
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
-        title="Eliminar docente"
+        title="Desactivar docente"
       >
         <div className="space-y-4">
           <p className="text-sm" style={{ color: '#475569' }}>
-            ¿Seguro que deseas eliminar este perfil de docente? Esta acción no se puede deshacer.
+            ¿Seguro que deseas desactivar este docente? El perfil cambiará a estado "Inactivo" pero los alumnos asignados no se verán afectados.
           </p>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setDeleteId(null)}>
               Cancelar
             </Button>
             <Button type="button" variant="danger" onClick={confirmDelete}>
-              Eliminar
+              Desactivar
             </Button>
           </div>
         </div>

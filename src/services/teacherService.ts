@@ -131,11 +131,18 @@ export const updateTeacherRequest = async (
   return data;
 };
 
-// ── DELETE /teachers/:id ──
+// ── DELETE /teachers/:id ── (soft-delete: cambia status a Inactivo)
 export const deleteTeacherRequest = async (id: string): Promise<void> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, 250));
-    MOCK_TEACHERS = MOCK_TEACHERS.filter((t) => t.id !== id);
+    const index = MOCK_TEACHERS.findIndex((t) => t.id === id);
+    if (index === -1) throw new Error('Docente no encontrado');
+    // Soft-delete: cambiar status a Inactivo en lugar de eliminar
+    MOCK_TEACHERS[index] = {
+      ...MOCK_TEACHERS[index],
+      status: 'Inactivo',
+      updatedAt: nowIso(),
+    };
     return;
   }
   await api.delete(`/teachers/${id}`);
