@@ -4,10 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, BookOpen, CheckCircle2, TrendingUp,
   Clock, MoreVertical, Download, ArrowUpRight,
-  Dumbbell, Apple, Brain, Flame, RefreshCw,
+  Dumbbell, Apple, Brain, Flame, RefreshCw, BarChart3,
 } from 'lucide-react';
 import useMetricsStore from '../../store/metricsStore';
 import useTaskStore, { formatRelativeTime } from '../../store/taskStore';
+import useStudentStore from '../../store/studentStore';
+import {
+  buildMonthlySessionsChart,
+  chartMiniStats,
+  chartPeriodLabel,
+  currentMonthBadge,
+} from '../../utils/dashboardData';
 
 const statusStyle: Record<string, string> = {
   'Aprobada':       'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -24,26 +31,6 @@ const CATEGORIES = [
   { label: 'Motivación', icon: Flame,    pct: 12, color: '#10b981', students: 255  },
 ];
 
-// ── Top alumnos ──
-const TOP_STUDENTS = [
-  { name: 'Mariana López',  program: 'Fitness Funcional',   sessions: 48, avatar: 'M' },
-  { name: 'Carlos Ruiz',    program: 'Nutrición Deportiva', sessions: 41, avatar: 'C' },
-  { name: 'Laura Gómez',    program: 'Mindfulness',         sessions: 37, avatar: 'L' },
-  { name: 'Diego Torres',   program: 'Pérdida de Peso',     sessions: 33, avatar: 'D' },
-];
-
-// ── Datos gráfica mensual ──
-const CHART_BARS = [
-  { label: 'Ene', val: 55  },
-  { label: 'Feb', val: 80  },
-  { label: 'Mar', val: 60  },
-  { label: 'Abr', val: 110 },
-  { label: 'May', val: 90  },
-  { label: 'Jun', val: 130 },
-  { label: 'Jul', val: 160 },
-];
-const maxVal = Math.max(...CHART_BARS.map((b) => b.val));
-
 const fade = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
@@ -55,9 +42,25 @@ export const Dashboard = () => {
   const { metrics, isLoading, error, fetchMetrics, refreshMetrics } = useMetricsStore();
   const tasks = useTaskStore((s) => s.tasks);
   const getRecent = useTaskStore((s) => s.getRecent);
+  const students = useStudentStore((s) => s.students);
+  const getTopBySessions = useStudentStore((s) => s.getTopBySessions);
 
   // Actividad reciente real desde sesiones/tareas del store
   const recent = useMemo(() => getRecent(4), [getRecent, tasks]);
+
+  // Gráfica y top alumnos: data falsa dinámica (sin año 2025 hardcodeado)
+  const chartBars = useMemo(() => buildMonthlySessionsChart(7), []);
+  const chartStats = useMemo(() => chartMiniStats(chartBars), [chartBars]);
+  const chartMax = useMemo(
+    () => (chartBars.length ? Math.max(...chartBars.map((b) => b.val), 1) : 1),
+    [chartBars],
+  );
+  const topStudents = useMemo(
+    () => getTopBySessions(4),
+    [getTopBySessions, students],
+  );
+  const periodBadge = useMemo(() => currentMonthBadge(), []);
+  const periodLabel = useMemo(() => chartPeriodLabel(chartBars), [chartBars]);
 
   // Carga métricas al montar (respeta caché de 1 min)
   useEffect(() => {
@@ -182,47 +185,49 @@ export const Dashboard = () => {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Sesiones por Mes</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Alumnos activos 2025</p>
+              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{periodLabel}</p>
             </div>
             <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
               <MoreVertical size={16} style={{ color: '#94a3b8' }} />
             </button>
           </div>
 
-          {/* Barras SVG */}
-          <div className="flex items-end gap-3 h-44 px-2">
-            {CHART_BARS.map((b, i) => {
-              const heightPct = (b.val / maxVal) * 100;
-              const isLast = i === CHART_BARS.length - 1;
-              return (
-                <div key={b.label} className="flex-1 flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] font-bold" style={{ color: isLast ? '#7c3aed' : '#94a3b8' }}>
-                    {b.val}
-                  </span>
-                  <div className="w-full rounded-lg overflow-hidden flex items-end" style={{ height: '120px', background: '#f8fafc' }}>
-                    <div
-                      className="w-full rounded-lg transition-all duration-700"
-                      style={{
-                        height: `${heightPct}%`,
-                        background: isLast
-                          ? 'linear-gradient(180deg,#7c3aed,#a78bfa)'
-                          : 'linear-gradient(180deg,#2563eb,#93c5fd)',
-                      }}
-                    />
+          {chartBars.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-44 text-center" style={{ color: '#94a3b8' }}>
+              <BarChart3 size={36} className="mb-2 opacity-30" />
+              <p className="text-sm font-medium">Sin datos de sesiones para mostrar</p>
+              <p className="text-xs mt-1">Cuando haya actividad mensual, la gráfica aparecerá aquí.</p>
+            </div>
+          ) : (
+            <div className="flex items-end gap-3 h-44 px-2">
+              {chartBars.map((b, i) => {
+                const heightPct = (b.val / chartMax) * 100;
+                const isLast = i === chartBars.length - 1;
+                return (
+                  <div key={`${b.year}-${b.monthIndex}`} className="flex-1 flex flex-col items-center gap-1.5">
+                    <span className="text-[10px] font-bold" style={{ color: isLast ? '#7c3aed' : '#94a3b8' }}>
+                      {b.val}
+                    </span>
+                    <div className="w-full rounded-lg overflow-hidden flex items-end" style={{ height: '120px', background: '#f8fafc' }}>
+                      <div
+                        className="w-full rounded-lg transition-all duration-700"
+                        style={{
+                          height: `${Math.max(heightPct, 4)}%`,
+                          background: isLast
+                            ? 'linear-gradient(180deg,#7c3aed,#a78bfa)'
+                            : 'linear-gradient(180deg,#2563eb,#93c5fd)',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>{b.label}</span>
                   </div>
-                  <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>{b.label}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Mini stats */}
           <div className="grid grid-cols-3 gap-4 mt-5 pt-4" style={{ borderTop: '1px solid #f1f5f9' }}>
-            {[
-              { label: 'Promedio',     value: '78%' },
-              { label: 'Completado',   value: '64%' },
-              { label: 'En proceso',   value: '28%' },
-            ].map((s) => (
+            {chartStats.map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-xl font-extrabold" style={{ color: '#0f172a' }}>{s.value}</p>
                 <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{s.label}</p>
@@ -339,36 +344,54 @@ export const Dashboard = () => {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Top Alumnos</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Más sesiones este mes</p>
+              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Más sesiones este período</p>
             </div>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
               style={{ background: 'rgba(124,58,237,0.08)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}>
-              Julio 2025
+              {periodBadge}
             </span>
           </div>
           <div className="space-y-3">
-            {TOP_STUDENTS.map((s, i) => (
-              <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50">
-                {/* Ranking */}
-                <span className="text-xs font-extrabold w-5 text-center flex-shrink-0"
-                  style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#cbd5e1' }}>
-                  #{i + 1}
-                </span>
-                {/* Avatar */}
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  {s.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{s.name}</p>
-                  <p className="text-xs truncate" style={{ color: '#94a3b8' }}>{s.program}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-extrabold" style={{ color: '#0f172a' }}>{s.sessions}</p>
-                  <p className="text-[10px]" style={{ color: '#94a3b8' }}>sesiones</p>
-                </div>
+            {topStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center" style={{ color: '#94a3b8' }}>
+                <Users size={36} className="mb-2 opacity-30" />
+                <p className="text-sm font-medium">No hay alumnos activos aún</p>
+                <p className="text-xs mt-1">El ranking aparecerá cuando haya sesiones registradas.</p>
               </div>
-            ))}
+            ) : (
+              topStudents.map((s, i) => (
+                <div
+                  key={s.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate('/students')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate('/students');
+                    }
+                  }}
+                  className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 cursor-pointer"
+                >
+                  <span className="text-xs font-extrabold w-5 text-center flex-shrink-0"
+                    style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#cbd5e1' }}>
+                    #{i + 1}
+                  </span>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                    {(s.avatar ?? s.name.charAt(0)).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{s.name}</p>
+                    <p className="text-xs truncate" style={{ color: '#94a3b8' }}>{s.program}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-extrabold" style={{ color: '#0f172a' }}>{s.sessions}</p>
+                    <p className="text-[10px]" style={{ color: '#94a3b8' }}>sesiones</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           <button
             onClick={() => navigate('/students')}
