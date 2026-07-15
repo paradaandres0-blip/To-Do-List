@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, BookOpen, Layout, Settings2, Trash2, Clock, CheckCircle2, Pencil } from 'lucide-react';
-import { Button } from '../../componets/common/Button/Button';
-import { Input } from '../../componets/common/Input/Input';
-import { Modal } from '../../componets/common/Modal/Modal';
+import { Button } from '../../components/common/Button/Button';
+import { Input } from '../../components/common/Input/Input';
+import { Modal } from '../../components/common/Modal/Modal';
 import { useForm } from 'react-hook-form';
 import type { Course } from '../../types/course.types';
 import {

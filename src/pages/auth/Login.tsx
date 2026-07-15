@@ -205,6 +205,28 @@ export const Login = () => {
         </div>
       </div>
 
+      {/* Credenciales demo */}
+      <div
+        className="mt-4 rounded-xl px-3 py-3 space-y-2"
+        style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}
+      >
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#c4b5fd' }}>
+          Accesos de prueba
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          <span className="text-slate-300 font-semibold">Admin:</span>{' '}
+          admin@workflow.com · (pass ≥ 6 chars)
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          <span className="text-slate-300 font-semibold">Docente:</span>{' '}
+          ana.gomez@workflow.academy · docente123
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          <span className="text-slate-300 font-semibold">Docente:</span>{' '}
+          carlos.ruiz@workflow.academy · docente123
+        </p>
+      </div>
+
       {/* Footer */}
       <p className="text-center text-[11px] text-slate-600 mt-4">
         ¿No tienes cuenta?{' '}

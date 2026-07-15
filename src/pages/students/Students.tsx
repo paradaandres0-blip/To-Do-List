@@ -1,9 +1,9 @@
 ﻿import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award } from 'lucide-react';
+import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
-type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido';
+type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
 
 interface Student {
   id: string; name: string; email: string; phone: string;
@@ -13,6 +13,10 @@ interface Student {
 interface StudentForm {
   name: string; email: string; phone: string;
   program: string; group: string; status: StudentStatus;
+}
+interface AssignForm {
+  program: string;
+  group: string;
 }
 
 const INITIAL: Student[] = [
@@ -28,12 +32,13 @@ const INITIAL: Student[] = [
 
 const PROGRAMS = ['Entrenamiento Funcional','Nutrición Deportiva','Mindfulness','Pérdida de Peso','Fitness Funcional'];
 const GROUPS   = ['Cohorte Fitness 2026','Programa Nutrición Pro','Bienestar Mental','Centro de Salud Vital'];
-const STATUSES: StudentStatus[] = ['Activo','Inactivo','Suspendido'];
+const STATUSES: StudentStatus[] = ['Activo','Inactivo','Suspendido','Pendiente'];
 
 const statusStyle: Record<StudentStatus, string> = {
   Activo:     'bg-emerald-50 text-emerald-700 border-emerald-200',
   Inactivo:   'bg-slate-50   text-slate-500   border-slate-200',
   Suspendido: 'bg-red-50     text-red-600     border-red-200',
+  Pendiente:  'bg-amber-50   text-amber-700   border-amber-200',
 };
 
 const Modal = ({ isOpen, onClose, title, children }: { isOpen:boolean; onClose:()=>void; title:string; children:React.ReactNode }) => {
@@ -65,8 +70,10 @@ export const Students = () => {
   const [editing,      setEditing]      = useState<Student | null>(null);
   const [deleteId,     setDeleteId]     = useState<string | null>(null);
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
+  const [assignModal,  setAssignModal]  = useState<Student | null>(null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>();
+  const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>();
 
   const filtered = useMemo(() => students.filter((s) => {
     const q = search.toLowerCase();
@@ -80,6 +87,20 @@ export const Students = () => {
     setEditing(s);
     (['name','email','phone','program','group','status'] as const).forEach((k) => setValue(k, s[k] as never));
     setModalOpen(true);
+  };
+  const openAssign = (s: Student) => {
+    setAssignModal(s);
+    resetAssign({ program: s.program, group: s.group });
+  };
+
+  const onAssign = (data: AssignForm) => {
+    if (assignModal) {
+      setStudents((p) => p.map((st) => 
+        st.id === assignModal.id ? { ...st, program: data.program, group: data.group } : st
+      ));
+      setAssignModal(null);
+      resetAssign();
+    }
   };
 
   const onSubmit = (data: StudentForm) => {
@@ -96,6 +117,7 @@ export const Students = () => {
     activos: students.filter((s) => s.status === 'Activo').length,
     inactivos: students.filter((s) => s.status === 'Inactivo').length,
     suspendidos: students.filter((s) => s.status === 'Suspendido').length,
+    pendientes: students.filter((s) => s.status === 'Pendiente').length,
   }), [students]);
 
   const ic = () => `w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all`;
@@ -119,12 +141,13 @@ export const Students = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
           { label:'Total',       value: counts.total,       color:'#7c3aed' },
           { label:'Activos',     value: counts.activos,     color:'#059669' },
           { label:'Inactivos',   value: counts.inactivos,   color:'#94a3b8' },
           { label:'Suspendidos', value: counts.suspendidos, color:'#ef4444' },
+          { label:'Pendientes', value: counts.pendientes,  color:'#f59e0b' },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-4 text-center"
             style={{ border:'1px solid #f1f5f9', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -133,6 +156,51 @@ export const Students = () => {
           </div>
         ))}
       </div>
+
+      {/* Solicitudes Pendientes */}
+      {counts.pendientes > 0 && (
+        <div className="bg-white rounded-2xl p-5"
+          style={{ border:'1px solid #f1f5f9', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-base flex items-center gap-2" style={{ color:'#0f172a' }}>
+              <Users size={18} style={{ color:'#f59e0b' }} /> Solicitudes Pendientes ({counts.pendientes})
+            </h3>
+          </div>
+          <div className="space-y-3">
+            {students.filter((s) => s.status === 'Pendiente').map((s) => (
+              <div key={s.id} className="flex items-center justify-between p-4 rounded-xl"
+                style={{ background:'#fffbeb', border:'1px solid #fcd34d' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-extrabold"
+                    style={{ background:'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+                    {s.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color:'#0f172a' }}>{s.name}</p>
+                    <p className="text-xs" style={{ color:'#92400e' }}>{s.email} • {s.program}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => {
+                    setStudents((p) => p.map((st) => st.id === s.id ? { ...st, status: 'Activo' } : st));
+                  }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white hover:opacity-90 transition-all"
+                    style={{ background:'linear-gradient(135deg,#059669,#10b981)' }}>
+                    <Check size={14} /> Aceptar
+                  </button>
+                  <button onClick={() => {
+                    setStudents((p) => p.filter((st) => st.id !== s.id));
+                  }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all"
+                    style={{ border:'1px solid #fca5a5', color:'#dc2626' }}>
+                    <XCircle size={14} /> Rechazar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Barra búsqueda */}
       <div className="bg-white rounded-2xl p-4 flex flex-col gap-3"
@@ -223,6 +291,10 @@ export const Students = () => {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1.5">
+                    <button onClick={(e) => { e.stopPropagation(); openAssign(s); }}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                      <UserPlus size={13} style={{ color:'#3b82f6' }} />
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); openEdit(s); }}
                       className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors">
                       <Pencil size={13} style={{ color:'#7c3aed' }} />
@@ -378,6 +450,46 @@ export const Students = () => {
               style={{ background:'linear-gradient(135deg,#ef4444,#dc2626)' }}>Eliminar</button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal asignar a grupo/programa */}
+      <Modal isOpen={!!assignModal} onClose={() => { setAssignModal(null); resetAssign(); }} title="Asignar a Grupo/Programa">
+        {assignModal && (
+          <form onSubmit={handleAssign(onAssign)} className="space-y-4">
+            <div className="p-3 rounded-xl" style={{ background:'#f8fafc' }}>
+              <p className="text-sm font-semibold" style={{ color:'#0f172a' }}>{assignModal.name}</p>
+              <p className="text-xs" style={{ color:'#94a3b8' }}>{assignModal.email}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Programa</label>
+              <select className={ic()} style={is(!!assignErrors.program)}
+                {...registerAssign('program', { required:'Obligatorio' })}>
+                <option value="">Seleccionar...</option>
+                {PROGRAMS.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              {assignErrors.program && <p className="text-xs text-red-500">{assignErrors.program.message}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Grupo</label>
+              <select className={ic()} style={is(!!assignErrors.group)}
+                {...registerAssign('group', { required:'Obligatorio' })}>
+                <option value="">Seleccionar...</option>
+                {GROUPS.map((g) => <option key={g}>{g}</option>)}
+              </select>
+              {assignErrors.group && <p className="text-xs text-red-500">{assignErrors.group.message}</p>}
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
+              <button type="button" onClick={() => { setAssignModal(null); resetAssign(); }}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all"
+                style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
+              <button type="submit"
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+                style={{ background:'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
+                Asignar
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
