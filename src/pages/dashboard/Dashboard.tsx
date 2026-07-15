@@ -5,12 +5,13 @@ import {
   Users, BookOpen, CheckCircle2, TrendingUp,
   Clock, MoreVertical, Download, ArrowUpRight,
   Dumbbell, Apple, Brain, Flame, RefreshCw, BarChart3,
-  FileSpreadsheet, FileText, ExternalLink, ChevronDown,
+  FileSpreadsheet, FileText, ExternalLink, ChevronDown, GraduationCap,
 } from 'lucide-react';
 import useMetricsStore from '../../store/metricsStore';
 import useTaskStore, { formatRelativeTime } from '../../store/taskStore';
 import useStudentStore from '../../store/studentStore';
 import useReportStore from '../../store/reportStore';
+import useAuthStore from '../../store/authStore';
 import {
   buildMonthlySessionsChart,
   chartMiniStats,
@@ -47,7 +48,10 @@ export const Dashboard = () => {
   const getRecent = useTaskStore((s) => s.getRecent);
   const students = useStudentStore((s) => s.students);
   const getTopBySessions = useStudentStore((s) => s.getTopBySessions);
+  const getByTeacherId = useStudentStore((s) => s.getByTeacherId);
   const reportSessions = useReportStore((s) => s.sessions);
+  const user = useAuthStore((s) => s.user);
+  const isInstructor = user?.role === 'instructor';
 
   const [exportOpen, setExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -84,8 +88,10 @@ export const Dashboard = () => {
     [chartBars],
   );
   const topStudents = useMemo(
-    () => getTopBySessions(4),
-    [getTopBySessions, students],
+    () => isInstructor && user?.teacherId
+      ? getByTeacherId(user.teacherId).slice(0, 4)
+      : getTopBySessions(4),
+    [getTopBySessions, getByTeacherId, students, isInstructor, user?.teacherId],
   );
   const periodBadge = useMemo(() => currentMonthBadge(), []);
   const periodLabel = useMemo(() => chartPeriodLabel(chartBars), [chartBars]);
@@ -96,7 +102,39 @@ export const Dashboard = () => {
   }, [fetchMetrics]);
 
   // KPIs dinámicos desde el store — si no hay datos aún usa placeholders
-  const STATS = [
+  const instructorStudents = useMemo(
+    () => isInstructor && user?.teacherId ? getByTeacherId(user.teacherId) : [],
+    [getByTeacherId, isInstructor, user?.teacherId],
+  );
+
+  const STATS = isInstructor ? [
+    {
+      title: 'Mis Alumnos',
+      value: instructorStudents.length.toString(),
+      trend: 'Total',
+      icon: Users, from: '#7c3aed', to: '#2563eb',
+    },
+    {
+      title: 'Alumnos Activos',
+      value: instructorStudents.filter((s) => s.status === 'Activo').length.toString(),
+      trend: 'Activos',
+      icon: CheckCircle2, from: '#059669', to: '#10b981',
+    },
+    {
+      title: 'Sesiones Totales',
+      value: instructorStudents.reduce((sum, s) => sum + s.sessions, 0).toString(),
+      trend: 'Acumulado',
+      icon: Clock, from: '#d97706', to: '#f59e0b',
+    },
+    {
+      title: 'Progreso Promedio',
+      value: instructorStudents.length > 0
+        ? `${Math.round(instructorStudents.reduce((sum, s) => sum + s.progress, 0) / instructorStudents.length)}%`
+        : '0%',
+      trend: 'Promedio',
+      icon: TrendingUp, from: '#2563eb', to: '#0ea5e9',
+    },
+  ] : [
     {
       title: 'Alumnos Activos',
       value: isLoading ? '…' : metrics ? metrics.studentsActive.toLocaleString() : '—',
@@ -129,77 +167,92 @@ export const Dashboard = () => {
       <motion.div {...fade(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
-            Dashboard — WorkFlow Academy
+            {isInstructor ? 'Mi Dashboard' : 'Dashboard — WorkFlow Academy'}
           </h1>
           <p className="text-sm mt-1" style={{ color: '#64748b' }}>
-            Resumen general de programas, alumnos y actividad.
+            {isInstructor ? 'Resumen de mis alumnos y sesiones.' : 'Resumen general de programas, alumnos y actividad.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Botón refresh */}
-          <button
-            onClick={() => refreshMetrics()}
-            disabled={isLoading}
-            className="p-2.5 rounded-xl transition-all hover:bg-slate-100 disabled:opacity-50"
-            style={{ border:'1px solid #e2e8f0' }}
-            title="Actualizar métricas">
-            <RefreshCw size={15} style={{ color:'#64748b' }} className={isLoading ? 'animate-spin' : ''} />
-          </button>
-          <div className="relative" ref={exportMenuRef}>
+          {/* Botón refresh - oculto para instructores */}
+          {!isInstructor && (
             <button
-              type="button"
-              onClick={() => setExportOpen((o) => !o)}
+              onClick={() => refreshMetrics()}
+              disabled={isLoading}
+              className="p-2.5 rounded-xl transition-all hover:bg-slate-100 disabled:opacity-50"
+              style={{ border:'1px solid #e2e8f0' }}
+              title="Actualizar métricas">
+              <RefreshCw size={15} style={{ color:'#64748b' }} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+          )}
+          {/* Botón perfil docente - solo para instructores */}
+          {isInstructor && (
+            <button
+              onClick={() => navigate('/docente/perfil')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-              aria-expanded={exportOpen}
-              aria-haspopup="menu"
-            >
-              <Download size={15} /> Exportar Reporte
-              <ChevronDown size={14} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+              title="Ver mi perfil">
+              <GraduationCap size={15} /> Mi Perfil
             </button>
-            {exportOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-56 rounded-xl bg-white py-1.5 z-20"
-                style={{ border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)' }}
+          )}
+          {/* Botón exportar - solo para admin */}
+          {!isInstructor && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setExportOpen((o) => !o)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                aria-expanded={exportOpen}
+                aria-haspopup="menu"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleExportCsv}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                  style={{ color: '#0f172a' }}
+                <Download size={15} /> Exportar Reporte
+                <ChevronDown size={14} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {exportOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-56 rounded-xl bg-white py-1.5 z-20"
+                  style={{ border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)' }}
                 >
-                  <FileSpreadsheet size={15} style={{ color: '#059669' }} />
-                  Descargar CSV
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleExportPdf}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                  style={{ color: '#0f172a' }}
-                >
-                  <FileText size={15} style={{ color: '#7c3aed' }} />
-                  Exportar PDF
-                </button>
-                <div className="my-1.5" style={{ borderTop: '1px solid #f1f5f9' }} />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setExportOpen(false);
-                    navigate('/reports');
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                  style={{ color: '#0f172a' }}
-                >
-                  <ExternalLink size={15} style={{ color: '#2563eb' }} />
-                  Abrir Reportes
-                </button>
-              </div>
-            )}
-          </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportCsv}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                    style={{ color: '#0f172a' }}
+                  >
+                    <FileSpreadsheet size={15} style={{ color: '#059669' }} />
+                    Descargar CSV
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportPdf}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                    style={{ color: '#0f172a' }}
+                  >
+                    <FileText size={15} style={{ color: '#7c3aed' }} />
+                    Exportar PDF
+                  </button>
+                  <div className="my-1.5" style={{ borderTop: '1px solid #f1f5f9' }} />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setExportOpen(false);
+                      navigate('/reports');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                    style={{ color: '#0f172a' }}
+                  >
+                    <ExternalLink size={15} style={{ color: '#2563eb' }} />
+                    Abrir Reportes
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
 
