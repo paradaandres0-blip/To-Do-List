@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2,
+  GraduationCap, Mail, Phone, MapPin, Calendar, Loader2, Pencil, Users, Clock,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
+import useStudentStore from '../../store/studentStore';
 import type { Teacher } from '../../types/teacher.types';
-import { getTeacherByIdRequest } from '../../services/teacherService';
+import { getTeacherByIdRequest, updateTeacherRequest } from '../../services/teacherService';
+import { Button } from '../../components/common/Button/Button';
+import { Input } from '../../components/common/Input/Input';
+import { Modal } from '../../components/common/Modal/Modal';
 
 /** Perfil del docente autenticado (misma paleta del dashboard). */
 export const MyTeacherProfile = () => {
@@ -12,6 +16,14 @@ export const MyTeacherProfile = () => {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', city: '' });
+  const [formError, setFormError] = useState<string | null>(null);
+  
+  const getByTeacherId = useStudentStore((s) => s.getByTeacherId);
+  const teacherStudents = teacher ? getByTeacherId(teacher.id) : [];
+  const totalSessions = teacherStudents.reduce((sum, s) => sum + s.sessions, 0);
 
   useEffect(() => {
     const load = async () => {
@@ -39,6 +51,46 @@ export const MyTeacherProfile = () => {
       year: 'numeric',
     });
 
+  const openEdit = () => {
+    if (!teacher) return;
+    setEditForm({
+      name: teacher.name,
+      email: teacher.email,
+      phone: teacher.phone,
+      city: teacher.city,
+    });
+    setFormError(null);
+    setIsEditing(true);
+  };
+
+  const closeEdit = () => {
+    setIsEditing(false);
+    setFormError(null);
+  };
+
+  const handleSave = async () => {
+    if (!teacher) return;
+    setIsSaving(true);
+    setFormError(null);
+    try {
+      const updated = await updateTeacherRequest(teacher.id, {
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone,
+        city: editForm.city,
+        specialties: teacher.specialties,
+        status: teacher.status,
+      });
+      setTeacher(updated);
+      closeEdit();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar el perfil';
+      setFormError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[280px]" style={{ color: '#94a3b8' }}>
@@ -59,17 +111,22 @@ export const MyTeacherProfile = () => {
 
   return (
     <div className="w-full space-y-6 max-w-3xl">
-      <div>
-        <h1
-          className="text-2xl font-extrabold tracking-tight flex items-center gap-2"
-          style={{ color: '#0f172a' }}
-        >
-          <GraduationCap size={24} style={{ color: '#7c3aed' }} />
-          Mi perfil docente
-        </h1>
-        <p className="text-sm mt-1" style={{ color: '#64748b' }}>
-          Datos del docente vinculados a tu cuenta.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1
+            className="text-2xl font-extrabold tracking-tight flex items-center gap-2"
+            style={{ color: '#0f172a' }}
+          >
+            <GraduationCap size={24} style={{ color: '#7c3aed' }} />
+            Mi perfil docente
+          </h1>
+          <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+            Datos del docente vinculados a tu cuenta.
+          </p>
+        </div>
+        <Button leftIcon={<Pencil size={16} />} onClick={openEdit}>
+          Editar perfil
+        </Button>
       </div>
 
       <div
@@ -151,6 +208,80 @@ export const MyTeacherProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* Estadísticas del docente */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div
+          className="bg-white rounded-2xl p-4 text-center"
+          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+        >
+          <Users size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
+          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{teacherStudents.length}</p>
+          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Alumnos</p>
+        </div>
+        <div
+          className="bg-white rounded-2xl p-4 text-center"
+          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+        >
+          <Clock size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
+          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{totalSessions}</p>
+          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Sesiones</p>
+        </div>
+        <div
+          className="bg-white rounded-2xl p-4 text-center"
+          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+        >
+          <GraduationCap size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
+          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{teacher.specialties.length}</p>
+          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Especialidades</p>
+        </div>
+      </div>
+
+      {/* Modal de edición */}
+      <Modal
+        isOpen={isEditing}
+        onClose={closeEdit}
+        title="Editar perfil"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          {formError && (
+            <div className="px-3 py-2.5 rounded-xl text-sm font-medium"
+              style={{ background: 'rgba(248,113,113,0.08)', color: '#ef4444', border: '1px solid rgba(248,113,113,0.2)' }}>
+              {formError}
+            </div>
+          )}
+          <Input
+            label="Nombre completo"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+          />
+          <Input
+            label="Correo electrónico"
+            type="email"
+            value={editForm.email}
+            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+          />
+          <Input
+            label="Teléfono"
+            value={editForm.phone}
+            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+          />
+          <Input
+            label="Ciudad"
+            value={editForm.city}
+            onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={closeEdit}>
+              Cancelar
+            </Button>
+            <Button type="button" isLoading={isSaving} onClick={handleSave}>
+              Guardar cambios
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
