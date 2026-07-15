@@ -21,7 +21,7 @@
  * En la API JSON se usa camelCase; el backend puede mapear a snake_case.
  */
 
-export type TeacherStatus = 'Activo' | 'Inactivo';
+export type TeacherStatus = 'Activo' | 'Inactivo' | 'Licencia';
 
 export interface Teacher {
   id: string;
