@@ -4,7 +4,7 @@ import {
   GraduationCap, ArrowLeft, Mail, Phone, MapPin,
   Calendar, Pencil, Loader2, Users,
 } from 'lucide-react';
-import { Button } from '../../componets/common/Button/Button';
+import { Button } from '../../components/common/Button/Button';
 import type { Teacher } from '../../types/teacher.types';
 import { getTeacherByIdRequest } from '../../services/teacherService';
 import useStudentStore from '../../store/studentStore';

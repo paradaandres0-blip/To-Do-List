@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Modal } from '../../componets/common/Modal/Modal';
+import { Modal } from '../../components/common/Modal/Modal';
 
 const INITIAL_GROUPS: Group[] = [
   { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso',      members: ['Laura Gómez', 'Diego Torres', 'Mariana López', 'Camila Pérez'] },

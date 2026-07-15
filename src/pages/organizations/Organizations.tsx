@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Modal } from '../../componets/common/Modal/Modal';
+import { Modal } from '../../components/common/Modal/Modal';
 
 interface Organization {
   id: string;
