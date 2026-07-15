@@ -5,7 +5,7 @@ export interface Student {
   phone?:    string;
   program:   string;
   group:     string;
-  status:    'Activo' | 'Inactivo' | 'Suspendido';
+  status:    'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
   sessions:  number;
   progress:  number; // 0-100
   joinedAt:  string;

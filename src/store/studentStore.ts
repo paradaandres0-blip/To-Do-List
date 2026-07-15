@@ -6,6 +6,9 @@ interface StudentState {
   getTopBySessions: (limit?: number) => Student[];
   getByTeacherId: (teacherId: string) => Student[];
   updateStudentProgress: (id: string, progress: number) => void;
+  getPendingRequests: () => Student[];
+  acceptRequest: (id: string) => void;
+  rejectRequest: (id: string) => void;
 }
 
 const daysAgo = (days: number) => {
@@ -146,6 +149,45 @@ const INITIAL_STUDENTS: Student[] = [
     joinedAt: daysAgo(30),
     teacherId: 't2',
   },
+  {
+    id: '11',
+    name: 'Isabella Rodríguez',
+    email: 'isabella@mail.com',
+    phone: '+57 300 555 6666',
+    program: 'Entrenamiento Funcional',
+    group: 'Cohorte Fitness',
+    status: 'Pendiente',
+    sessions: 0,
+    progress: 0,
+    joinedAt: daysAgo(2),
+    teacherId: 't1',
+  },
+  {
+    id: '12',
+    name: 'Mateo Fernández',
+    email: 'mateo@mail.com',
+    phone: '+57 301 777 8888',
+    program: 'Nutrición Deportiva',
+    group: 'Programa Nutrición Pro',
+    status: 'Pendiente',
+    sessions: 0,
+    progress: 0,
+    joinedAt: daysAgo(5),
+    teacherId: 't2',
+  },
+  {
+    id: '13',
+    name: 'Camila Santos',
+    email: 'camila.s@mail.com',
+    phone: '+57 310 999 0000',
+    program: 'Mindfulness',
+    group: 'Bienestar Mental',
+    status: 'Pendiente',
+    sessions: 0,
+    progress: 0,
+    joinedAt: daysAgo(1),
+    teacherId: 't1',
+  },
 ];
 
 const useStudentStore = create<StudentState>((set, get) => ({
@@ -167,6 +209,24 @@ const useStudentStore = create<StudentState>((set, get) => ({
       students: state.students.map((s) =>
         s.id === id ? { ...s, progress: Math.max(0, Math.min(100, progress)) } : s,
       ),
+    }));
+  },
+
+  getPendingRequests: () => {
+    return get().students.filter((s) => s.status === 'Pendiente');
+  },
+
+  acceptRequest: (id) => {
+    set((state) => ({
+      students: state.students.map((s) =>
+        s.id === id ? { ...s, status: 'Activo' } : s,
+      ),
+    }));
+  },
+
+  rejectRequest: (id) => {
+    set((state) => ({
+      students: state.students.filter((s) => s.id !== id),
     }));
   },
 }));
