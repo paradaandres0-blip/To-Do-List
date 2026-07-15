@@ -37,12 +37,13 @@ export const TeacherLayout = () => {
           </div>
 
           {/* Nav links */}
-          <nav className="flex items-center gap-1 flex-1 min-w-0">
+          <nav className="flex items-center gap-1 flex-1 min-w-0" role="navigation" aria-label="Navegación principal">
             {NAV.map(({ to, end, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
+                aria-label={label}
                 className={({ isActive }) =>
                   `inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
                     isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -62,6 +63,9 @@ export const TeacherLayout = () => {
                   <>
                     <Icon size={16} className={isActive ? 'text-purple-400' : 'text-slate-500'} />
                     <span className="hidden xs:inline sm:inline">{label}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" aria-hidden="true" />
+                    )}
                   </>
                 )}
               </NavLink>
