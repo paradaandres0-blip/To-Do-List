@@ -12,17 +12,15 @@ export const TeacherLayout = () => {
   const { user, handleLogout } = useAuth();
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#f8fafc' }}>
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
       <header
-        className="flex-shrink-0 z-20"
-        style={{ background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        className="flex-shrink-0 z-20 bg-slate-900 border-b border-white/5"
       >
         <div className="flex items-center gap-4 px-4 md:px-6 h-14">
           {/* Brand */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600"
             >
               <Dumbbell size={16} className="text-white" strokeWidth={2.5} />
             </div>
@@ -46,17 +44,10 @@ export const TeacherLayout = () => {
                 aria-label={label}
                 className={({ isActive }) =>
                   `inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-                    isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    isActive
+                      ? 'text-white bg-gradient-to-r from-purple-600/25 to-blue-600/15 border border-purple-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                   }`
-                }
-                style={({ isActive }) =>
-                  isActive
-                    ? {
-                        background:
-                          'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(37,99,235,0.15))',
-                        border: '1px solid rgba(124,58,237,0.3)',
-                      }
-                    : { border: '1px solid transparent' }
                 }
               >
                 {({ isActive }) => (
@@ -82,10 +73,7 @@ export const TeacherLayout = () => {
                 {user?.email}
               </p>
             </div>
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-            >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0 bg-gradient-to-br from-purple-600 to-blue-600">
               {user?.name?.charAt(0).toUpperCase() ?? 'D'}
             </div>
             <button
@@ -102,7 +90,7 @@ export const TeacherLayout = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto min-h-0">
-        <div className="py-4 px-4 md:px-6 h-full">
+        <div className="py-4 px-4 md:px-6 h-full bg-slate-50">
           <Outlet />
         </div>
       </main>
