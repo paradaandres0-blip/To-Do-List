@@ -72,11 +72,13 @@ export const Tasks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tasks = useTaskStore((s) => s.tasks);
+  const error = useTaskStore((s) => s.error);
   const addTask = useTaskStore((s) => s.addTask);
   const updateTask = useTaskStore((s) => s.updateTask);
   const deleteTask = useTaskStore((s) => s.deleteTask);
   const cycleStatus = useTaskStore((s) => s.cycleStatus);
   const getById = useTaskStore((s) => s.getById);
+  const clearError = useTaskStore((s) => s.clearError);
 
   const [search,      setSearch]      = useState('');
   const [filterPrio,  setFilterPrio]  = useState<Priority | 'Todas'>('Todas');
@@ -182,6 +184,17 @@ export const Tasks = () => {
 
   return (
     <div className="w-full space-y-6">
+
+      {/* ── Error message ── */}
+      {error && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-600">
+          <AlertCircle size={16} />
+          <span>{error}</span>
+          <button onClick={clearError} className="ml-auto text-xs underline hover:no-underline">
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
