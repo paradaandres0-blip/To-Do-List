@@ -1,6 +1,7 @@
 import api from './api';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import type { Student } from '../types/student.types';
+import { studentSchema } from '../schemas/student.schema';
 
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 type StudentPayload = Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt'>;
@@ -11,26 +12,42 @@ const daysAgo = (days: number) => {
   return date.toISOString().split('T')[0];
 };
 
+// Validar y crear datos mock con tipos correctos
+const createMockStudent = (data: Partial<Student> & { id: string }): Student => {
+  const validated = studentSchema.parse({
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    program: data.program,
+    group: data.group,
+    status: data.status,
+  });
+  return {
+    ...validated,
+    sessions: data.sessions ?? 0,
+    progress: data.progress ?? 0,
+    joinedAt: data.joinedAt ?? daysAgo(0),
+    teacherId: data.teacherId ?? '',
+  } as Student;
+};
+
 /** Fuente temporal en memoria; se reemplaza por el API al usar VITE_AUTH_MODE=real. */
 let MOCK_STUDENTS: Student[] = [
-  ['1','Mariana López','mariana@mail.com','+57 300 111 2222','Entrenamiento Funcional','Cohorte Fitness','Activo',48,82,180,'t2'],
-  ['2','Carlos Ruiz','carlos@mail.com','+57 310 333 4444','Nutrición Deportiva','Programa Nutrición Pro','Activo',41,67,150,'t1'],
-  ['3','Laura Gómez','laura@mail.com','+57 320 555 6666','Mindfulness','Bienestar Mental','Activo',37,74,170,'t1'],
-  ['4','Diego Torres','diego@mail.com','+57 315 777 8888','Pérdida de Peso','Cohorte Fitness','Activo',33,55,120,'t1'],
-  ['5','Sofía Martínez','sofia@mail.com','+57 311 999 0000','Entrenamiento Funcional','Cohorte Fitness','Inactivo',12,28,140,'t2'],
-  ['6','Andrés Peña','andres@mail.com','+57 305 123 4567','Nutrición Deportiva','Programa Nutrición Pro','Activo',29,60,90,'t1'],
-  ['7','Valentina Cruz','vale@mail.com','+57 318 234 5678','Mindfulness','Bienestar Mental','Suspendido',5,10,100,'t1'],
-  ['8','Juliana Ríos','juliana@mail.com','+57 312 345 6789','Pérdida de Peso','Cohorte Fitness','Activo',44,90,200,'t2'],
-  ['9','Camila Pérez','camila@mail.com','+57 301 222 3333','Entrenamiento Funcional','Cohorte Fitness','Activo',18,35,60,'t2'],
-  ['10','Sergio Díaz','sergio@mail.com','+57 302 444 5555','Fuerza y Acondicionamiento','Cohorte Fitness','Activo',8,15,30,'t2'],
-  ['11','Isabella Rodríguez','isabella@mail.com','+57 300 555 6666','Entrenamiento Funcional','Cohorte Fitness','Pendiente',0,0,2,'t1'],
-  ['12','Mateo Fernández','mateo@mail.com','+57 301 777 8888','Nutrición Deportiva','Programa Nutrición Pro','Pendiente',0,0,5,'t2'],
-  ['13','Camila Santos','camila.s@mail.com','+57 310 999 0000','Mindfulness','Bienestar Mental','Pendiente',0,0,1,'t1'],
-].map(([id, name, email, phone, program, group, status, sessions, progress, days, teacherId]) => ({
-  id: id as string, name: name as string, email: email as string, phone: phone as string,
-  program: program as string, group: group as string, status: status as Student['status'],
-  sessions: sessions as number, progress: progress as number, joinedAt: daysAgo(days as number), teacherId: teacherId as string,
-}));
+  createMockStudent({ id:'1', name:'Mariana López', email:'mariana@mail.com', phone:'+57 300 111 2222', program:'Entrenamiento Funcional', group:'Cohorte Fitness', status:'Activo', sessions:48, progress:82, joinedAt:daysAgo(180), teacherId:'t2' }),
+  createMockStudent({ id:'2', name:'Carlos Ruiz', email:'carlos@mail.com', phone:'+57 310 333 4444', program:'Nutrición Deportiva', group:'Programa Nutrición Pro', status:'Activo', sessions:41, progress:67, joinedAt:daysAgo(150), teacherId:'t1' }),
+  createMockStudent({ id:'3', name:'Laura Gómez', email:'laura@mail.com', phone:'+57 320 555 6666', program:'Mindfulness', group:'Bienestar Mental', status:'Activo', sessions:37, progress:74, joinedAt:daysAgo(170), teacherId:'t1' }),
+  createMockStudent({ id:'4', name:'Diego Torres', email:'diego@mail.com', phone:'+57 315 777 8888', program:'Pérdida de Peso', group:'Cohorte Fitness', status:'Activo', sessions:33, progress:55, joinedAt:daysAgo(120), teacherId:'t1' }),
+  createMockStudent({ id:'5', name:'Sofía Martínez', email:'sofia@mail.com', phone:'+57 311 999 0000', program:'Entrenamiento Funcional', group:'Cohorte Fitness', status:'Inactivo', sessions:12, progress:28, joinedAt:daysAgo(140), teacherId:'t2' }),
+  createMockStudent({ id:'6', name:'Andrés Peña', email:'andres@mail.com', phone:'+57 305 123 4567', program:'Nutrición Deportiva', group:'Programa Nutrición Pro', status:'Activo', sessions:29, progress:60, joinedAt:daysAgo(90), teacherId:'t1' }),
+  createMockStudent({ id:'7', name:'Valentina Cruz', email:'vale@mail.com', phone:'+57 318 234 5678', program:'Mindfulness', group:'Bienestar Mental', status:'Suspendido', sessions:5, progress:10, joinedAt:daysAgo(100), teacherId:'t1' }),
+  createMockStudent({ id:'8', name:'Juliana Ríos', email:'juliana@mail.com', phone:'+57 312 345 6789', program:'Pérdida de Peso', group:'Cohorte Fitness', status:'Activo', sessions:44, progress:90, joinedAt:daysAgo(200), teacherId:'t2' }),
+  createMockStudent({ id:'9', name:'Camila Pérez', email:'camila@mail.com', phone:'+57 301 222 3333', program:'Entrenamiento Funcional', group:'Cohorte Fitness', status:'Activo', sessions:18, progress:35, joinedAt:daysAgo(60), teacherId:'t2' }),
+  createMockStudent({ id:'10', name:'Sergio Díaz', email:'sergio@mail.com', phone:'+57 302 444 5555', program:'Fuerza y Acondicionamiento', group:'Cohorte Fitness', status:'Activo', sessions:8, progress:15, joinedAt:daysAgo(30), teacherId:'t2' }),
+  createMockStudent({ id:'11', name:'Isabella Rodríguez', email:'isabella@mail.com', phone:'+57 300 555 6666', program:'Entrenamiento Funcional', group:'Cohorte Fitness', status:'Pendiente', sessions:0, progress:0, joinedAt:daysAgo(2), teacherId:'t1' }),
+  createMockStudent({ id:'12', name:'Mateo Fernández', email:'mateo@mail.com', phone:'+57 301 777 8888', program:'Nutrición Deportiva', group:'Programa Nutrición Pro', status:'Pendiente', sessions:0, progress:0, joinedAt:daysAgo(5), teacherId:'t2' }),
+  createMockStudent({ id:'13', name:'Camila Santos', email:'camila.s@mail.com', phone:'+57 310 999 0000', program:'Mindfulness', group:'Bienestar Mental', status:'Pendiente', sessions:0, progress:0, joinedAt:daysAgo(1), teacherId:'t1' }),
+  ];
 
 const clone = (student: Student) => ({ ...student });
 

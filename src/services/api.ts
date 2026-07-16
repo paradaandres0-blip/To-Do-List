@@ -87,7 +87,10 @@ api.interceptors.response.use(
       // Cola para peticiones que lleguen mientras se refresca
       if (!(api as any)._isRefreshing) {
         (api as any)._isRefreshing = true;
-        (api as any)._failedQueue = [] as Array<any>;
+        (api as any)._failedQueue = [] as Array<{
+          resolve: (token: string) => void;
+          reject: (err: any) => void;
+        }>;
 
         const refreshClient = axios.create({ baseURL: api.defaults.baseURL });
         refreshClient.post('/auth/refresh', { refreshToken })
@@ -98,17 +101,22 @@ api.interceptors.response.use(
               api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
             }
 
-            (api as any)._failedQueue.forEach((prom: any) => {
-              prom.resolve(newToken);
+            // Resolver todas las promesas en cola con el nuevo token
+            (api as any)._failedQueue.forEach((prom: { resolve: (token: string) => void; reject: (err: any) => void }) => {
+              if (newToken) {
+                prom.resolve(newToken);
+              } else {
+                prom.reject(new Error('No se recibió token en refresh'));
+              }
             });
             (api as any)._failedQueue = [];
           })
           .catch((err) => {
-            (api as any)._failedQueue.forEach((prom: any) => {
+            // Refresh también falló → sesión expirada definitivamente
+            (api as any)._failedQueue.forEach((prom: { resolve: (token: string) => void; reject: (err: any) => void }) => {
               prom.reject(err);
             });
             (api as any)._failedQueue = [];
-            // Refresh también falló → sesión expirada definitivamente
             clearAuthState();
             window.location.href = '/auth/login';
           })
@@ -117,6 +125,10 @@ api.interceptors.response.use(
           });
       }
 
+      // Marcar el request para no reintentar
+      originalRequest._retry = true;
+
+      // Agregar a la cola de espera
       return new Promise((resolve, reject) => {
         (api as any)._failedQueue.push({
           resolve: (token: string) => {

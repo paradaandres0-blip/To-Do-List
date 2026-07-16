@@ -51,6 +51,15 @@ export const useNotifications = () => {
     }, 800);
   }, []);
 
+  // Cleanup del debounce al desmontar
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   // Alternar un toggle → guarda en localStorage inmediatamente + dispara sync API
   const toggle = useCallback((key: keyof NotificationPrefs) => {
     setPrefs((prev) => {

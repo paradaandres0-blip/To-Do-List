@@ -5,6 +5,7 @@ import type {
   UpdateTeacherPayload,
 } from '../types/teacher.types';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
+import { teacherSchema } from '../schemas/teacher.schema';
 
 // ── Helper: extraer data de ApiResponse ──
 const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
@@ -19,13 +20,31 @@ const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
 const nowIso = () => new Date().toISOString();
 
+// Validar y crear datos mock con tipos correctos
+const createMockTeacher = (data: Partial<Teacher> & { id: string }): Teacher => {
+  const validated = teacherSchema.parse({
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    city: data.city,
+    specialties: data.specialties,
+    status: data.status,
+  });
+  return {
+    ...validated,
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? nowIso(),
+  } as Teacher;
+};
+
 /**
  * Mock en memoria — simula la tabla `teachers` de PostgreSQL.
  * Al conectar el API real, solo hay que poner VITE_AUTH_MODE=real
  * y apuntar VITE_API_URL al backend.
  */
 let MOCK_TEACHERS: Teacher[] = [
-  {
+  createMockTeacher({
     id: 't1',
     name: 'Ana Gómez',
     email: 'ana.gomez@workflow.academy',
@@ -35,8 +54,8 @@ let MOCK_TEACHERS: Teacher[] = [
     status: 'Activo',
     createdAt: nowIso(),
     updatedAt: nowIso(),
-  },
-  {
+  }),
+  createMockTeacher({
     id: 't2',
     name: 'Carlos Ruiz',
     email: 'carlos.ruiz@workflow.academy',
@@ -46,7 +65,7 @@ let MOCK_TEACHERS: Teacher[] = [
     status: 'Activo',
     createdAt: nowIso(),
     updatedAt: nowIso(),
-  },
+  }),
 ];
 
 // ── GET /teachers ──

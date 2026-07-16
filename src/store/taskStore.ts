@@ -5,6 +5,7 @@ import { TASK_STATUSES } from '../types/task.types';
 
 interface TaskState {
   tasks: Task[];
+  error: string | null;
   loadTasks: () => Promise<void>;
   addTask: (data: TaskForm) => Promise<void>;
   updateTask: (id: string, data: TaskForm) => Promise<void>;
@@ -12,13 +13,21 @@ interface TaskState {
   cycleStatus: (id: string) => Promise<void>;
   getRecent: (limit?: number) => Task[];
   getById: (id: string) => Task | undefined;
+  clearError: () => void;
 }
 
 const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  error: null,
   loadTasks: async () => {
-    const response = await getTasksRequest();
-    set({ tasks: response.data });
+    try {
+      const response = await getTasksRequest();
+      set({ tasks: response.data, error: null });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al cargar las tareas';
+      set({ error: message });
+      console.error('Error al cargar tareas:', err);
+    }
   },
   addTask: async (data) => {
     const created = await createTaskRequest(data);
@@ -41,6 +50,7 @@ const useTaskStore = create<TaskState>((set, get) => ({
   },
   getRecent: (limit = 4) => [...get().tasks].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, limit),
   getById: (id) => get().tasks.find((task) => task.id === id),
+  clearError: () => set({ error: null }),
 }));
 
 void useTaskStore.getState().loadTasks().catch((error: unknown) => console.error('No se pudieron cargar las tareas', error));
