@@ -117,8 +117,8 @@ export const MyTeacherProfile = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[280px]" style={{ color: '#94a3b8' }}>
-        <Loader2 size={28} className="animate-spin mb-3" style={{ color: '#7c3aed' }} />
+      <div className="flex flex-col items-center justify-center min-h-[280px] text-slate-400">
+        <Loader2 size={28} className="animate-spin mb-3 text-purple-600" />
         <p className="text-sm font-medium">Cargando perfil...</p>
       </div>
     );
@@ -126,9 +126,9 @@ export const MyTeacherProfile = () => {
 
   if (error || !teacher) {
     return (
-      <div className="bg-white rounded-2xl p-10 text-center max-w-lg" style={{ border: '1px solid #f1f5f9' }}>
-        <GraduationCap size={40} className="mx-auto mb-3 opacity-30" style={{ color: '#94a3b8' }} />
-        <p className="font-semibold" style={{ color: '#0f172a' }}>{error ?? 'Perfil no encontrado'}</p>
+      <div className="bg-white rounded-2xl p-10 text-center max-w-lg border border-slate-100">
+        <GraduationCap size={40} className="mx-auto mb-3 opacity-30 text-slate-400" />
+        <p className="font-semibold text-slate-900">{error ?? 'Perfil no encontrado'}</p>
       </div>
     );
   }
@@ -137,14 +137,11 @@ export const MyTeacherProfile = () => {
     <div className="w-full space-y-6 max-w-3xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1
-            className="text-2xl font-extrabold tracking-tight flex items-center gap-2"
-            style={{ color: '#0f172a' }}
-          >
-            <GraduationCap size={24} style={{ color: '#7c3aed' }} />
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
+            <GraduationCap size={24} className="text-purple-600" />
             Mi perfil docente
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+          <p className="text-sm mt-1 text-slate-500">
             Datos del docente vinculados a tu cuenta.
           </p>
         </div>
@@ -153,39 +150,32 @@ export const MyTeacherProfile = () => {
         </Button>
       </div>
 
-      <div
-        className="bg-white rounded-2xl overflow-hidden"
-        style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-      >
+      <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
         <div
           className="px-6 py-8 flex flex-col sm:flex-row sm:items-center gap-5"
           style={{
             background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(37,99,235,0.06))',
           }}
         >
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-          >
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold flex-shrink-0 bg-gradient-to-br from-purple-600 to-blue-600">
             {teacher.name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
                 {teacher.name}
               </h2>
               <span
-                className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border"
-                style={
+                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
                   teacher.status === 'Activo'
-                    ? { background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }
-                    : { background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }
-                }
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}
               >
                 {teacher.status}
               </span>
             </div>
-            <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+            <p className="text-sm mt-1 text-slate-500">
               Rol: Docente · WorkFlow Academy
             </p>
           </div>
@@ -193,40 +183,35 @@ export const MyTeacherProfile = () => {
 
         <div className="p-6 grid gap-6 sm:grid-cols-2">
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Contacto
             </h3>
-            <p className="flex items-center gap-2 text-sm" style={{ color: '#334155' }}>
-              <Mail size={15} style={{ color: '#7c3aed' }} /> {teacher.email}
+            <p className="flex items-center gap-2 text-sm text-slate-700">
+              <Mail size={15} className="text-purple-600" /> {teacher.email}
             </p>
-            <p className="flex items-center gap-2 text-sm" style={{ color: '#334155' }}>
-              <Phone size={15} style={{ color: '#7c3aed' }} /> {teacher.phone}
+            <p className="flex items-center gap-2 text-sm text-slate-700">
+              <Phone size={15} className="text-purple-600" /> {teacher.phone}
             </p>
-            <p className="flex items-center gap-2 text-sm" style={{ color: '#334155' }}>
-              <MapPin size={15} style={{ color: '#7c3aed' }} /> {teacher.city}
+            <p className="flex items-center gap-2 text-sm text-slate-700">
+              <MapPin size={15} className="text-purple-600" /> {teacher.city}
             </p>
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Especialidades
             </h3>
             <div className="flex flex-wrap gap-2">
               {teacher.specialties.map((s) => (
                 <span
                   key={s}
-                  className="text-xs font-semibold px-3 py-1 rounded-full border"
-                  style={{
-                    background: 'rgba(124,58,237,0.08)',
-                    color: '#7c3aed',
-                    borderColor: 'rgba(124,58,237,0.2)',
-                  }}
+                  className="text-xs font-semibold px-3 py-1 rounded-full border bg-purple-50 text-purple-600 border-purple-200"
                 >
                   {s}
                 </span>
               ))}
             </div>
-            <p className="flex items-center gap-2 text-xs pt-2" style={{ color: '#94a3b8' }}>
+            <p className="flex items-center gap-2 text-xs pt-2 text-slate-400">
               <Calendar size={13} /> Actualizado {formatDate(teacher.updatedAt)}
             </p>
           </div>
@@ -235,43 +220,31 @@ export const MyTeacherProfile = () => {
 
       {/* Estadísticas del docente */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div
-          className="bg-white rounded-2xl p-4 text-center"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-        >
-          <Users size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
-          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{teacherStudents.length}</p>
-          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Alumnos</p>
+        <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm">
+          <Users size={20} className="mx-auto mb-2 text-purple-600" />
+          <p className="text-2xl font-extrabold text-slate-900">{teacherStudents.length}</p>
+          <p className="text-xs font-medium mt-1 text-slate-500">Alumnos</p>
         </div>
-        <div
-          className="bg-white rounded-2xl p-4 text-center"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-        >
-          <Clock size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
-          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{totalSessions}</p>
-          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Sesiones</p>
+        <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm">
+          <Clock size={20} className="mx-auto mb-2 text-purple-600" />
+          <p className="text-2xl font-extrabold text-slate-900">{totalSessions}</p>
+          <p className="text-xs font-medium mt-1 text-slate-500">Sesiones</p>
         </div>
-        <div
-          className="bg-white rounded-2xl p-4 text-center"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-        >
-          <GraduationCap size={20} className="mx-auto mb-2" style={{ color: '#7c3aed' }} />
-          <p className="text-2xl font-extrabold" style={{ color: '#0f172a' }}>{teacher.specialties.length}</p>
-          <p className="text-xs font-medium mt-1" style={{ color: '#64748b' }}>Especialidades</p>
+        <div className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm">
+          <GraduationCap size={20} className="mx-auto mb-2 text-purple-600" />
+          <p className="text-2xl font-extrabold text-slate-900">{teacher.specialties.length}</p>
+          <p className="text-xs font-medium mt-1 text-slate-500">Especialidades</p>
         </div>
       </div>
 
       {/* Cursos asignados al docente */}
-      <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-      >
-        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: '#94a3b8' }}>
-          <Book size={14} style={{ color: '#7c3aed' }} />
+      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-slate-400">
+          <Book size={14} className="text-purple-600" />
           Mis cursos
         </h3>
         {teacherPrograms.length === 0 ? (
-          <p className="text-sm text-center py-4" style={{ color: '#94a3b8' }}>
+          <p className="text-sm text-center py-4 text-slate-400">
             No tienes cursos asignados
           </p>
         ) : (
@@ -279,12 +252,7 @@ export const MyTeacherProfile = () => {
             {teacherPrograms.map((program) => (
               <span
                 key={program}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full border"
-                style={{
-                  background: 'rgba(124,58,237,0.08)',
-                  color: '#7c3aed',
-                  borderColor: 'rgba(124,58,237,0.2)',
-                }}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full border bg-purple-50 text-purple-600 border-purple-200"
               >
                 {program}
               </span>
@@ -294,16 +262,13 @@ export const MyTeacherProfile = () => {
       </div>
 
       {/* Mis estudiantes */}
-      <div
-        className="bg-white rounded-2xl p-6"
-        style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-      >
-        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: '#94a3b8' }}>
-          <User size={14} style={{ color: '#7c3aed' }} />
+      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-slate-400">
+          <User size={14} className="text-purple-600" />
           Mis estudiantes
         </h3>
         {teacherStudents.length === 0 ? (
-          <p className="text-sm text-center py-4" style={{ color: '#94a3b8' }}>
+          <p className="text-sm text-center py-4 text-slate-400">
             No tienes estudiantes asignados
           </p>
         ) : (
@@ -311,33 +276,31 @@ export const MyTeacherProfile = () => {
             {teacherStudents.slice(0, 5).map((student) => (
               <div
                 key={student.id}
-                className="flex items-center justify-between p-3 rounded-xl"
-                style={{ background: 'rgba(124,58,237,0.04)', border: '1px solid rgba(124,58,237,0.1)' }}
+                className="flex items-center justify-between p-3 rounded-xl bg-purple-50/50 border border-purple-100"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>
+                  <p className="text-sm font-semibold truncate text-slate-900">
                     {student.name}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: '#64748b' }}>
+                  <p className="text-xs mt-1 text-slate-500">
                     {student.program} · {student.group}
                   </p>
                 </div>
                 <span
-                  className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ml-3 flex-shrink-0"
-                  style={
+                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ml-3 flex-shrink-0 ${
                     student.status === 'Activo'
-                      ? { background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       : student.status === 'Pendiente'
-                      ? { background: '#fef3c7', color: '#d97706', borderColor: '#fde68a' }
-                      : { background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }
-                  }
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-slate-50 text-slate-500 border-slate-200'
+                  }`}
                 >
                   {student.status}
                 </span>
               </div>
             ))}
             {teacherStudents.length > 5 && (
-              <p className="text-xs text-center pt-2" style={{ color: '#94a3b8' }}>
+              <p className="text-xs text-center pt-2 text-slate-400">
                 +{teacherStudents.length - 5} estudiantes más
               </p>
             )}

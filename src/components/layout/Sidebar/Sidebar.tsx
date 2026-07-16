@@ -29,14 +29,12 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="flex flex-col h-full w-64"
-      style={{ background: '#0f172a', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+      className="flex flex-col h-full w-64 bg-slate-900 border-r border-white/5"
     >
       {/* ── Logo ── */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-white/5">
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-purple-600 to-blue-600"
         >
           <Dumbbell size={18} className="text-white" strokeWidth={2.5} />
         </div>
@@ -59,14 +57,9 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group ${
                 isActive
-                  ? 'text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'text-white bg-gradient-to-r from-purple-600/25 to-blue-600/15 border border-purple-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
               }`
-            }
-            style={({ isActive }) =>
-              isActive
-                ? { background: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(37,99,235,0.15))', border: '1px solid rgba(124,58,237,0.3)' }
-                : {}
             }
           >
             {({ isActive }) => (
@@ -83,7 +76,7 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Footer ── */}
-      <div className="px-3 pb-4 space-y-0.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+      <div className="px-3 pb-4 space-y-0.5 border-t border-white/5 pt-3">
         <NavLink
           to="/profile"
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-150"

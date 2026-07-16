@@ -166,10 +166,10 @@ export const Dashboard = () => {
       {/* ── Header ── */}
       <motion.div {...fade(0)} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             {isInstructor ? 'Mi Dashboard' : 'Dashboard — WorkFlow Academy'}
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+          <p className="text-sm mt-1 text-slate-500">
             {isInstructor ? 'Resumen de mis alumnos y sesiones.' : 'Resumen general de programas, alumnos y actividad.'}
           </p>
         </div>
@@ -179,18 +179,16 @@ export const Dashboard = () => {
             <button
               onClick={() => refreshMetrics()}
               disabled={isLoading}
-              className="p-2.5 rounded-xl transition-all hover:bg-slate-100 disabled:opacity-50"
-              style={{ border:'1px solid #e2e8f0' }}
+              className="p-2.5 rounded-xl transition-all hover:bg-slate-100 disabled:opacity-50 border border-slate-200"
               title="Actualizar métricas">
-              <RefreshCw size={15} style={{ color:'#64748b' }} className={isLoading ? 'animate-spin' : ''} />
+              <RefreshCw size={15} className="text-slate-500" />
             </button>
           )}
           {/* Botón perfil docente - solo para instructores */}
           {isInstructor && (
             <button
               onClick={() => navigate('/docente/perfil')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer bg-gradient-to-br from-purple-600 to-blue-600"
               title="Ver mi perfil">
               <GraduationCap size={15} /> Mi Perfil
             </button>
@@ -201,8 +199,7 @@ export const Dashboard = () => {
               <button
                 type="button"
                 onClick={() => setExportOpen((o) => !o)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all cursor-pointer bg-gradient-to-br from-purple-600 to-blue-600"
                 aria-expanded={exportOpen}
                 aria-haspopup="menu"
               >
@@ -212,30 +209,27 @@ export const Dashboard = () => {
               {exportOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 mt-2 w-56 rounded-xl bg-white py-1.5 z-20"
-                  style={{ border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)' }}
+                   className="absolute right-0 mt-2 w-56 rounded-xl bg-white py-1.5 z-20 border border-slate-200 shadow-lg"
                 >
                   <button
                     type="button"
                     role="menuitem"
                     onClick={handleExportCsv}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                    style={{ color: '#0f172a' }}
-                  >
-                    <FileSpreadsheet size={15} style={{ color: '#059669' }} />
+                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer text-slate-900"
+                   >
+                     <FileSpreadsheet size={15} className="text-emerald-600" />
                     Descargar CSV
                   </button>
                   <button
                     type="button"
                     role="menuitem"
                     onClick={handleExportPdf}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                    style={{ color: '#0f172a' }}
-                  >
-                    <FileText size={15} style={{ color: '#7c3aed' }} />
+                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer text-slate-900"
+                   >
+                     <FileText size={15} className="text-purple-600" />
                     Exportar PDF
                   </button>
-                  <div className="my-1.5" style={{ borderTop: '1px solid #f1f5f9' }} />
+                   <div className="my-1.5 border-t border-slate-100" />
                   <button
                     type="button"
                     role="menuitem"
@@ -243,10 +237,9 @@ export const Dashboard = () => {
                       setExportOpen(false);
                       navigate('/reports');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer"
-                    style={{ color: '#0f172a' }}
-                  >
-                    <ExternalLink size={15} style={{ color: '#2563eb' }} />
+                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-left hover:bg-slate-50 transition-colors cursor-pointer text-slate-900"
+                   >
+                     <ExternalLink size={15} className="text-blue-600" />
                     Abrir Reportes
                   </button>
                 </div>
@@ -258,8 +251,7 @@ export const Dashboard = () => {
 
       {/* Error de métricas */}
       {error && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
-          style={{ background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.2)', color:'#ef4444' }}>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-600">
           ⚠️ {error}
           <button onClick={() => refreshMetrics()} className="ml-auto text-xs underline hover:no-underline">
             Reintentar
@@ -271,8 +263,7 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {STATS.map((s, i) => (
           <motion.div key={s.title} {...fade(i * 0.07)}
-            className="bg-white rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden"
-            style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            className="bg-white rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden border border-slate-100 shadow-sm">
             {/* Orbe */}
             <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full opacity-10"
               style={{ background: `radial-gradient(circle,${s.from},${s.to})` }} />
@@ -282,10 +273,9 @@ export const Dashboard = () => {
                 <s.icon size={20} className="text-white" />
               </div>
               {isLoading ? (
-                <div className="h-6 w-12 rounded-full animate-pulse" style={{ background:'#f1f5f9' }} />
+                <div className="h-6 w-12 rounded-full animate-pulse bg-slate-100" />
               ) : (
-                <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
-                  style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
                   <ArrowUpRight size={11} />{s.trend}
                 </span>
               )}
@@ -293,13 +283,13 @@ export const Dashboard = () => {
             <div>
               {isLoading ? (
                 <>
-                  <div className="h-8 w-20 rounded-lg animate-pulse mb-2" style={{ background:'#f1f5f9' }} />
-                  <div className="h-4 w-28 rounded animate-pulse" style={{ background:'#f1f5f9' }} />
+                  <div className="h-8 w-20 rounded-lg animate-pulse mb-2 bg-slate-100" />
+                  <div className="h-4 w-28 rounded animate-pulse bg-slate-100" />
                 </>
               ) : (
                 <>
-                  <p className="text-3xl font-extrabold" style={{ color: '#0f172a' }}>{s.value}</p>
-                  <p className="text-sm font-medium mt-0.5" style={{ color: '#64748b' }}>{s.title}</p>
+                  <p className="text-3xl font-extrabold text-slate-900">{s.value}</p>
+                  <p className="text-sm font-medium mt-0.5 text-slate-500">{s.title}</p>
                 </>
               )}
             </div>
@@ -311,15 +301,14 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Gráfica de barras SVG */}
-        <motion.div {...fade(0.28)} className="lg:col-span-2 bg-white rounded-2xl p-6"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <motion.div {...fade(0.28)} className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Sesiones por Mes</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{periodLabel}</p>
+              <h2 className="text-base font-bold text-slate-900">Sesiones por Mes</h2>
+              <p className="text-xs mt-0.5 text-slate-400">{periodLabel}</p>
             </div>
             <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-              <MoreVertical size={16} style={{ color: '#94a3b8' }} />
+              <MoreVertical size={16} className="text-slate-400" />
             </button>
           </div>
 
@@ -336,10 +325,10 @@ export const Dashboard = () => {
                 const isLast = i === chartBars.length - 1;
                 return (
                   <div key={`${b.year}-${b.monthIndex}`} className="flex-1 flex flex-col items-center gap-1.5">
-                    <span className="text-[10px] font-bold" style={{ color: isLast ? '#7c3aed' : '#94a3b8' }}>
+                    <span className={`text-[10px] font-bold ${isLast ? 'text-purple-600' : 'text-slate-400'}`}>
                       {b.val}
                     </span>
-                    <div className="w-full rounded-lg overflow-hidden flex items-end" style={{ height: '120px', background: '#f8fafc' }}>
+                    <div className="w-full rounded-lg overflow-hidden flex items-end bg-slate-50" style={{ height: '120px' }}>
                       <div
                         className="w-full rounded-lg transition-all duration-700"
                         style={{
@@ -350,54 +339,52 @@ export const Dashboard = () => {
                         }}
                       />
                     </div>
-                    <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>{b.label}</span>
+                    <span className="text-[10px] font-medium text-slate-400">{b.label}</span>
                   </div>
                 );
               })}
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4 mt-5 pt-4" style={{ borderTop: '1px solid #f1f5f9' }}>
+          <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-slate-100">
             {chartStats.map((s) => (
               <div key={s.label} className="text-center">
-                <p className="text-xl font-extrabold" style={{ color: '#0f172a' }}>{s.value}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{s.label}</p>
+                <p className="text-xl font-extrabold text-slate-900">{s.value}</p>
+                <p className="text-xs mt-0.5 text-slate-400">{s.label}</p>
               </div>
             ))}
           </div>
         </motion.div>
 
         {/* Categorías de programas */}
-        <motion.div {...fade(0.33)} className="bg-white rounded-2xl p-6"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <h2 className="text-base font-bold mb-5" style={{ color: '#0f172a' }}>Programas por Categoría</h2>
+        <motion.div {...fade(0.33)} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <h2 className="text-base font-bold mb-5 text-slate-900">Programas por Categoría</h2>
           <div className="space-y-4">
             {CATEGORIES.map((cat) => (
               <div key={cat.label}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <cat.icon size={14} style={{ color: cat.color }} />
-                    <span className="text-sm font-medium" style={{ color: '#334155' }}>{cat.label}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-bold" style={{ color: cat.color }}>{cat.pct}%</span>
-                    <p className="text-[10px]" style={{ color: '#94a3b8' }}>{cat.students} alumnos</p>
-                  </div>
-                </div>
-                <div className="h-2 rounded-full" style={{ background: '#f1f5f9' }}>
-                  <div className="h-2 rounded-full transition-all duration-700"
-                    style={{ width: `${cat.pct}%`, background: `linear-gradient(90deg,${cat.color},${cat.color}88)` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+                     <cat.icon size={14} style={{ color: cat.color }} />
+                     <span className="text-sm font-medium text-slate-700">{cat.label}</span>
+                   </div>
+                   <div className="text-right">
+                     <span className="text-sm font-bold" style={{ color: cat.color }}>{cat.pct}%</span>
+                     <p className="text-[10px] text-slate-400">{cat.students} alumnos</p>
+                   </div>
+                 </div>
+                 <div className="h-2 rounded-full bg-slate-100">
+                   <div className="h-2 rounded-full transition-all duration-700"
+                     style={{ width: `${cat.pct}%`, background: `linear-gradient(90deg,${cat.color},${cat.color}88)` }} />
+                 </div>
+               </div>
+             ))}
+           </div>
 
-          {/* Total */}
-          <div className="mt-5 pt-4 flex items-center justify-between"
-            style={{ borderTop: '1px solid #f1f5f9' }}>
-            <span className="text-sm font-medium" style={{ color: '#64748b' }}>Total alumnos</span>
-            <span className="text-lg font-extrabold" style={{ color: '#0f172a' }}>2,148</span>
-          </div>
+           {/* Total */}
+           <div className="mt-5 pt-4 flex items-center justify-between border-t border-slate-100">
+             <span className="text-sm font-medium text-slate-500">Total alumnos</span>
+             <span className="text-lg font-extrabold text-slate-900">2,148</span>
+           </div>
         </motion.div>
       </div>
 
@@ -405,17 +392,16 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Actividad reciente */}
-        <motion.div {...fade(0.4)} className="bg-white rounded-2xl p-6"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <motion.div {...fade(0.4)} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Actividad Reciente</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Últimas sesiones y tareas</p>
+              <h2 className="text-base font-bold text-slate-900">Actividad Reciente</h2>
+              <p className="text-xs mt-0.5 text-slate-400">Últimas sesiones y tareas</p>
             </div>
           </div>
           <div className="space-y-2">
             {recent.length === 0 ? (
-              <p className="text-sm py-6 text-center" style={{ color: '#94a3b8' }}>
+              <p className="text-sm py-6 text-center text-slate-400">
                 No hay actividad reciente
               </p>
             ) : (
@@ -433,13 +419,12 @@ export const Dashboard = () => {
                   }}
                   className="w-full flex items-start gap-3 p-2 -mx-2 rounded-xl text-left transition-colors hover:bg-slate-50 cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
-                    <Clock size={14} style={{ color: '#7c3aed' }} />
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 bg-purple-50 border border-purple-100">
+                    <Clock size={14} className="text-purple-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{item.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{item.course}</p>
+                    <p className="text-sm font-semibold truncate text-slate-900">{item.title}</p>
+                    <p className="text-xs mt-0.5 text-slate-400">{item.course}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <button
                         type="button"
@@ -452,7 +437,7 @@ export const Dashboard = () => {
                       >
                         {item.status}
                       </button>
-                      <span className="text-[11px]" style={{ color: '#cbd5e1' }}>
+                      <span className="text-[11px] text-slate-300">
                         {formatRelativeTime(item.updatedAt)}
                       </span>
                     </div>
@@ -463,28 +448,25 @@ export const Dashboard = () => {
           </div>
           <button
             onClick={() => navigate('/tasks')}
-            className="w-full mt-5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer"
-            style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.15)', color: '#7c3aed' }}>
+            className="w-full mt-5 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer bg-purple-50 border border-purple-200 text-purple-600">
             Ver toda la actividad →
           </button>
         </motion.div>
 
         {/* Top alumnos */}
-        <motion.div {...fade(0.45)} className="bg-white rounded-2xl p-6"
-          style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <motion.div {...fade(0.45)} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold" style={{ color: '#0f172a' }}>Top Alumnos</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>Más sesiones este período</p>
+              <h2 className="text-base font-bold text-slate-900">Top Alumnos</h2>
+              <p className="text-xs mt-0.5 text-slate-400">Más sesiones este período</p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: 'rgba(124,58,237,0.08)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200">
               {periodBadge}
             </span>
           </div>
           <div className="space-y-3">
             {topStudents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center" style={{ color: '#94a3b8' }}>
+              <div className="flex flex-col items-center justify-center py-10 text-center text-slate-400">
                 <Users size={36} className="mb-2 opacity-30" />
                 <p className="text-sm font-medium">No hay alumnos activos aún</p>
                 <p className="text-xs mt-1">El ranking aparecerá cuando haya sesiones registradas.</p>
@@ -504,30 +486,29 @@ export const Dashboard = () => {
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 cursor-pointer"
                 >
-                  <span className="text-xs font-extrabold w-5 text-center flex-shrink-0"
-                    style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#d97706' : '#cbd5e1' }}>
-                    #{i + 1}
-                  </span>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                    {(s.avatar ?? s.name.charAt(0)).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: '#0f172a' }}>{s.name}</p>
-                    <p className="text-xs truncate" style={{ color: '#94a3b8' }}>{s.program}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-extrabold" style={{ color: '#0f172a' }}>{s.sessions}</p>
-                    <p className="text-[10px]" style={{ color: '#94a3b8' }}>sesiones</p>
-                  </div>
+                   <span className={`text-xs font-extrabold w-5 text-center flex-shrink-0 ${
+                     i === 0 ? 'text-amber-500' : i === 1 ? 'text-slate-400' : i === 2 ? 'text-amber-600' : 'text-slate-300'
+                   }`}>
+                     #{i + 1}
+                   </span>
+                   <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0 bg-gradient-to-br from-purple-600 to-blue-600">
+                     {(s.avatar ?? s.name.charAt(0)).toUpperCase()}
+                   </div>
+                   <div className="flex-1 min-w-0">
+                     <p className="text-sm font-semibold truncate text-slate-900">{s.name}</p>
+                     <p className="text-xs truncate text-slate-400">{s.program}</p>
+                   </div>
+                   <div className="text-right flex-shrink-0">
+                     <p className="text-sm font-extrabold text-slate-900">{s.sessions}</p>
+                     <p className="text-[10px] text-slate-400">sesiones</p>
+                   </div>
                 </div>
               ))
             )}
           </div>
           <button
             onClick={() => navigate('/students')}
-            className="w-full mt-4 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer"
-            style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.15)', color: '#7c3aed' }}>
+            className="w-full mt-4 py-2 text-xs font-semibold rounded-xl transition-all hover:opacity-80 cursor-pointer bg-purple-50 border border-purple-200 text-purple-600">
             Ver todos los alumnos →
           </button>
         </motion.div>
