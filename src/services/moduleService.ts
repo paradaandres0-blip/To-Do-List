@@ -1,5 +1,15 @@
 import api from './api';
+import type { ApiResponse } from '../types/api.types';
 import type { Module } from '../types/module.types';
+
+// ── Helper: extraer data de ApiResponse ──
+const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+  const d = response.data;
+  if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
+    return (d as ApiResponse<T>).data;
+  }
+  return d as T;
+};
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
@@ -37,8 +47,8 @@ export const getModulesRequest = async (): Promise<Module[]> => {
     await new Promise((r) => setTimeout(r, 400));
     return [...MOCK_MODULES];
   }
-  const { data } = await api.get<Module[]>('/modules');
-  return data;
+  const response = await api.get<ApiResponse<Module[]>>('/modules');
+  return extractData(response);
 };
 
 // ── POST /modules ──
@@ -52,8 +62,8 @@ export const createModuleRequest = async (payload: Omit<Module, 'id'>): Promise<
     MOCK_MODULES = [newModule, ...MOCK_MODULES];
     return newModule;
   }
-  const { data } = await api.post<Module>('/modules', payload);
-  return data;
+  const response = await api.post<ApiResponse<Module>>('/modules', payload);
+  return extractData(response);
 };
 
 // ── PUT /modules/:id ──
@@ -69,8 +79,8 @@ export const updateModuleRequest = async (id: string, payload: Partial<Omit<Modu
     MOCK_MODULES[index] = updated;
     return updated;
   }
-  const { data } = await api.put<Module>(`/modules/${id}`, payload);
-  return data;
+  const response = await api.put<ApiResponse<Module>>(`/modules/${id}`, payload);
+  return extractData(response);
 };
 
 // ── DELETE /modules/:id ──

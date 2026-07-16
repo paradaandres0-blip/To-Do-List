@@ -1,4 +1,15 @@
 import axios from 'axios';
+import { genericApiResponseSchema, genericPaginatedResponseSchema, apiErrorSchema } from '../schemas/api.schema';
+
+// ── Logging de respuestas inválidas ──
+const logInvalidResponse = (url: string, data: unknown, validationErrors: unknown) => {
+  console.warn(`[API Validation] Respuesta inválida para ${url}:`, {
+    url,
+    data,
+    validationErrors,
+    timestamp: new Date().toISOString(),
+  });
+};
 
 // ── Limpiar auth store cuando el token expira sin importar el ciclo de React ──
 const clearAuthState = () => {
@@ -27,10 +38,41 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor: manejo global de errores ──
+// ── Response interceptor: validación de respuestas + manejo global de errores ──
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Validar solo en modo real (con backend)
+    const isReal = import.meta.env.VITE_AUTH_MODE !== 'mock';
+    if (isReal && response.data) {
+      const url = response.config?.url ?? 'unknown';
+
+      // Verificar si la respuesta tiene forma de ApiResponse o PaginatedResponse
+      const apiResult = genericApiResponseSchema.safeParse(response.data);
+      const paginatedResult = genericPaginatedResponseSchema.safeParse(response.data);
+
+      if (!apiResult.success && !paginatedResult.success) {
+        logInvalidResponse(url, response.data, {
+          apiErrors: apiResult.error?.issues,
+          paginatedErrors: paginatedResult.error?.issues,
+        });
+      }
+    }
+    return response;
+  },
   (error) => {
+    // Validar errores con apiErrorSchema en modo real
+    const isReal = import.meta.env.VITE_AUTH_MODE !== 'mock';
+    if (isReal && error.response?.data) {
+      const errorResult = apiErrorSchema.safeParse(error.response.data);
+      if (!errorResult.success) {
+        console.warn('[API Validation] Error response no sigue el estándar ApiError:', {
+          url: error.config?.url,
+          data: error.response.data,
+          validationErrors: errorResult.error.issues,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
     const originalRequest = error.config;
 
     // Token expirado o inválido → intentar refresh flow

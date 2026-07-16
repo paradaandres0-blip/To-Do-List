@@ -4,7 +4,16 @@ import type {
   Teacher,
   UpdateTeacherPayload,
 } from '../types/teacher.types';
-import type { PaginatedResponse } from '../types/api.types';
+import type { ApiResponse, PaginatedResponse } from '../types/api.types';
+
+// ── Helper: extraer data de ApiResponse ──
+const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+  const d = response.data;
+  if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
+    return (d as ApiResponse<T>).data;
+  }
+  return d as T;
+};
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
@@ -50,8 +59,8 @@ export const getTeachersRequest = async (page = 1, pageSize = 10): Promise<Pagin
     const data = MOCK_TEACHERS.slice(start, start + pageSize).map((t) => ({ ...t }));
     return { data, total, page, pageSize, totalPages };
   }
-  const { data } = await api.get<PaginatedResponse<Teacher>>('/teachers', { params: { page, pageSize } });
-  return data;
+  const response = await api.get<PaginatedResponse<Teacher>>('/teachers', { params: { page, pageSize } });
+  return extractData(response);
 };
 
 // ── GET /teachers/:id ──
@@ -62,8 +71,8 @@ export const getTeacherByIdRequest = async (id: string): Promise<Teacher> => {
     if (!found) throw new Error('Docente no encontrado');
     return { ...found };
   }
-  const { data } = await api.get<Teacher>(`/teachers/${id}`);
-  return data;
+  const response = await api.get<ApiResponse<Teacher>>(`/teachers/${id}`);
+  return extractData(response);
 };
 
 // ── POST /teachers ──
@@ -92,8 +101,8 @@ export const createTeacherRequest = async (
     MOCK_TEACHERS = [created, ...MOCK_TEACHERS];
     return created;
   }
-  const { data } = await api.post<Teacher>('/teachers', payload);
-  return data;
+  const response = await api.post<ApiResponse<Teacher>>('/teachers', payload);
+  return extractData(response);
 };
 
 // ── PUT /teachers/:id ──
@@ -132,8 +141,8 @@ export const updateTeacherRequest = async (
     MOCK_TEACHERS[index] = updated;
     return updated;
   }
-  const { data } = await api.put<Teacher>(`/teachers/${id}`, payload);
-  return data;
+  const response = await api.put<ApiResponse<Teacher>>(`/teachers/${id}`, payload);
+  return extractData(response);
 };
 
 // ── DELETE /teachers/:id ── (soft-delete: cambia status a Inactivo)

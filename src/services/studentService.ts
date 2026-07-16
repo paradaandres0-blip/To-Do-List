@@ -1,5 +1,5 @@
 import api from './api';
-import type { PaginatedResponse } from '../types/api.types';
+import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import type { Student } from '../types/student.types';
 
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
@@ -34,6 +34,16 @@ let MOCK_STUDENTS: Student[] = [
 
 const clone = (student: Student) => ({ ...student });
 
+// ── Helper: extraer data de ApiResponse ──
+const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+  const d = response.data;
+  // Si tiene la forma ApiResponse { data, message, success }, extraer d.data
+  if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
+    return (d as ApiResponse<T>).data;
+  }
+  return d as T;
+};
+
 export const getStudentsRequest = async (page = 1, pageSize = 10): Promise<PaginatedResponse<Student>> => {
   if (IS_MOCK) {
     const total = MOCK_STUDENTS.length;
@@ -42,8 +52,8 @@ export const getStudentsRequest = async (page = 1, pageSize = 10): Promise<Pagin
     const data = MOCK_STUDENTS.slice(start, start + pageSize).map(clone);
     return { data, total, page, pageSize, totalPages };
   }
-  const { data } = await api.get<PaginatedResponse<Student>>('/students', { params: { page, pageSize } });
-  return data;
+  const response = await api.get<PaginatedResponse<Student>>('/students', { params: { page, pageSize } });
+  return extractData(response);
 };
 
 export const getStudentByIdRequest = async (id: string): Promise<Student> => {
@@ -52,8 +62,8 @@ export const getStudentByIdRequest = async (id: string): Promise<Student> => {
     if (!student) throw new Error('Alumno no encontrado');
     return clone(student);
   }
-  const { data } = await api.get<Student>(`/students/${id}`);
-  return data;
+  const response = await api.get<ApiResponse<Student>>(`/students/${id}`);
+  return extractData(response);
 };
 
 export const createStudentRequest = async (payload: StudentPayload): Promise<Student> => {
@@ -62,8 +72,8 @@ export const createStudentRequest = async (payload: StudentPayload): Promise<Stu
     MOCK_STUDENTS = [created, ...MOCK_STUDENTS];
     return clone(created);
   }
-  const { data } = await api.post<Student>('/students', payload);
-  return data;
+  const response = await api.post<ApiResponse<Student>>('/students', payload);
+  return extractData(response);
 };
 
 export const updateStudentRequest = async (id: string, payload: Partial<StudentPayload & Pick<Student, 'sessions' | 'progress'>>): Promise<Student> => {
@@ -73,8 +83,8 @@ export const updateStudentRequest = async (id: string, payload: Partial<StudentP
     MOCK_STUDENTS[index] = { ...MOCK_STUDENTS[index], ...payload };
     return clone(MOCK_STUDENTS[index]);
   }
-  const { data } = await api.put<Student>(`/students/${id}`, payload);
-  return data;
+  const response = await api.put<ApiResponse<Student>>(`/students/${id}`, payload);
+  return extractData(response);
 };
 
 export const deleteStudentRequest = async (id: string): Promise<void> => {
