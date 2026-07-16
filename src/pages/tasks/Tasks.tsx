@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList, Plus, Search, Filter, Clock,
@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import useTaskStore from '../../store/taskStore';
 import type { Priority, Status, Task, TaskForm } from '../../types/task.types';
 import { TASK_PRIORITIES, TASK_STATUSES } from '../../types/task.types';
+import { Pagination } from '../../components/common/Pagination/Pagination';
 
 const COURSES = [
   'Nutrición Avanzada',
@@ -64,6 +65,8 @@ const Modal = ({ isOpen, onClose, title, children }: {
 };
 
 // ── Componente principal ──
+const PAGE_SIZE = 8;
+
 export const Tasks = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -79,6 +82,7 @@ export const Tasks = () => {
   const [filterPrio,  setFilterPrio]  = useState<Priority | 'Todas'>('Todas');
   const [filterStat,  setFilterStat]  = useState<Status | 'Todas'>('Todas');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editingTask,  setEditingTask]  = useState<Task | null>(null);
@@ -127,6 +131,21 @@ export const Tasks = () => {
     const matchStat   = filterStat === 'Todas' || t.status   === filterStat;
     return matchSearch && matchPrio && matchStat;
   }), [tasks, search, filterPrio, filterStat]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterPrio, filterStat]);
 
   const openCreate = () => {
     setEditingTask(null);
@@ -294,10 +313,10 @@ export const Tasks = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((task, i) => (
+              {paginatedItems.map((task, i) => (
               <tr key={task.id}
                 className="hover:bg-slate-50 transition-colors cursor-pointer"
-                style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none' }}
+                style={{ borderBottom: i < paginatedItems.length - 1 ? '1px solid #f8fafc' : 'none' }}
                 onClick={() => openEdit(task)}
               >
 
@@ -345,7 +364,7 @@ export const Tasks = () => {
           </tbody>
         </table>
 
-        {filtered.length === 0 && (
+        {filtered.length === 0 && paginatedItems.length === 0 && (
           <div className="py-16 text-center" style={{ color:'#94a3b8' }}>
             <ClipboardList size={36} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm font-medium">No se encontraron sesiones</p>
@@ -361,6 +380,16 @@ export const Tasks = () => {
           </div>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <Pagination
+          page={currentPage}
+          pageSize={PAGE_SIZE}
+          total={filtered.length}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
 
       <button onClick={() => navigate('/dashboard')}
         className="text-xs font-medium hover:underline" style={{ color:'#94a3b8' }}>
