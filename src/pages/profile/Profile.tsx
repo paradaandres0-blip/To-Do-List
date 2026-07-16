@@ -1,6 +1,7 @@
 import { User, Mail, Phone, MapPin, Shield, Edit3, Camera, Loader } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
+import { LazyImage } from '../../components/common';
 
 const ACTIVITY = [
   { action: 'Aprobó sesión "Rutina de Fuerza Nivel 2"',  time: 'Hace 2 horas'  },
@@ -45,11 +46,11 @@ export const Profile = () => {
           {/* Avatar con botón de cámara */}
           <div className="relative mb-4">
             {avatarUrl ? (
-              <img
+              <LazyImage
                 src={avatarUrl}
                 alt="Avatar"
-                className="w-24 h-24 rounded-2xl object-cover"
-                style={{ border: '3px solid rgba(124,58,237,0.2)' }}
+                className="w-24 h-24 rounded-2xl"
+                bgColor="transparent"
               />
             ) : (
               <div

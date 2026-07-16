@@ -6,3 +6,4 @@ export { Loader } from './Loader/Loader';
 export { Table } from './Table/Table';
 export { ErrorBoundary } from './ErrorBoundary/ErrorBoundary';
 export { Pagination } from './Pagination/Pagination';
+export { LazyImage } from './LazyImage/LazyImage';

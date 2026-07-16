@@ -258,23 +258,64 @@ export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promis
   await api.patch('/users/me/notifications', prefs);
 };
 
+// ── Tipos y límites para avatar ──
+export const AVATAR_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+export const AVATAR_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type AvatarAllowedType = (typeof AVATAR_ALLOWED_TYPES)[number];
+
+export interface AvatarValidationError {
+  code: 'SIZE_EXCEEDED' | 'INVALID_TYPE' | 'COMPRESSION_FAILED';
+  message: string;
+}
+
+/**
+ * Valida un archivo de avatar contra tamaño y tipo permitidos.
+ */
+export const validateAvatarFile = (file: File): AvatarValidationError | null => {
+  if (file.size > AVATAR_MAX_SIZE) {
+    return {
+      code: 'SIZE_EXCEEDED',
+      message: `La imagen no debe superar 2 MB (tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+    };
+  }
+  if (!AVATAR_ALLOWED_TYPES.includes(file.type as AvatarAllowedType)) {
+    return {
+      code: 'INVALID_TYPE',
+      message: `Solo se permiten imágenes JPG, PNG o WebP (tipo recibido: ${file.type})`,
+    };
+  }
+  return null;
+};
+
 // ────────────────────────────────────────────
 // POST /users/me/avatar  — subir avatar de usuario
 // ────────────────────────────────────────────
 export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: string }> => {
+  // Validar archivo antes de procesar
+  const validationError = validateAvatarFile(file);
+  if (validationError) {
+    throw new Error(validationError.message);
+  }
+
   if (IS_MOCK) {
+    // Comprimir antes de convertir a data URL para mock
+    const { getCompressedFile } = await import('../utils/imageCompression');
+    const compressed = await getCompressedFile(file);
     await new Promise((r) => setTimeout(r, 800));
-    // En mock convertimos el archivo a data URL local
+    // Convertir a data URL local (comprimido)
     const url = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressed);
     });
     return { avatarUrl: url };
   }
 
+  // Modo real: comprimir antes de enviar
+  const { getCompressedFile } = await import('../utils/imageCompression');
+  const compressed = await getCompressedFile(file, { maxSizeBytes: AVATAR_MAX_SIZE });
   const formData = new FormData();
-  formData.append('avatar', file);
+  formData.append('avatar', compressed);
   const { data } = await api.post<{ avatarUrl: string }>('/users/me/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

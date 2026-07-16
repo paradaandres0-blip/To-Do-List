@@ -6,6 +6,7 @@ import useAuthStore from '../../store/authStore';
 import { updateProfileRequest, changePasswordRequest } from '../../services/authService';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
+import { LazyImage } from '../../components/common';
 import { changePasswordSchema, profileSchema } from '../../schemas/auth.schema';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
@@ -182,13 +183,16 @@ export const Settings = () => {
               <div className="flex items-center gap-4">
                 <div className="relative">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar"
-                      className="w-16 h-16 rounded-2xl object-cover"
-                      style={{ border:'2px solid rgba(124,58,237,0.2)' }} />
+                    <LazyImage
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="w-16 h-16 rounded-2xl"
+                      bgColor="transparent"
+                    />
                   ) : (
                     <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold"
                       style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                      {user?.name?.charAt(0) ?? 'A'}
+                      {user?.name?.charAt(0)?.toUpperCase() ?? 'A'}
                     </div>
                   )}
                   {isUploading && (
