@@ -2,6 +2,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
 
 type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
 
@@ -72,8 +74,12 @@ export const Students = () => {
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
   const [assignModal,  setAssignModal]  = useState<Student | null>(null);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>();
-  const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>();
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>({
+    resolver: zodResolver(studentSchema),
+  });
+  const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>({
+    resolver: zodResolver(studentAssignmentSchema),
+  });
 
   const filtered = useMemo(() => students.filter((s) => {
     const q = search.toLowerCase();

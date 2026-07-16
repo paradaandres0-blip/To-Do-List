@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, User, Lock, ArrowRight } from 'lucide-react';
 import { registerRequest } from '../../services/authService';
-
-interface FormInputs { name: string; email: string; password: string; confirm: string }
+import { registerSchema, type RegisterFormValues } from '../../schemas/auth.schema';
 
 export const Register = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (data: FormInputs) => {
+  const onSubmit = async (data: RegisterFormValues) => {
     setError(null);
     setMessage(null);
     if (data.password !== data.confirm) { setError('Las contraseñas no coinciden'); return; }

@@ -1,20 +1,22 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { resetRequest } from '../../services/authService';
-
-interface FormInputs { password: string; confirm: string }
+import { resetPasswordSchema, type ResetPasswordFormValues } from '../../schemas/auth.schema';
 
 export const ResetPassword = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const onSubmit = async (data: FormInputs) => {
+  const onSubmit = async (data: ResetPasswordFormValues) => {
     setError(null);
     setMessage(null);
     if (!token) { setError('Token inválido'); return; }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   GraduationCap, Plus, Search, Pencil, Trash2, Eye,
   Mail, Phone, MapPin, Filter, X,
@@ -16,6 +17,7 @@ import {
   updateTeacherRequest,
   deleteTeacherRequest,
 } from '../../services/teacherService';
+import { teacherSchema } from '../../schemas/teacher.schema';
 
 const STATUS_STYLE: Record<TeacherStatus, string> = {
   Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -43,6 +45,7 @@ export const Teachers = () => {
     control,
     formState: { errors },
   } = useForm<TeacherFormValues>({
+    resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: '',
       email: '',
