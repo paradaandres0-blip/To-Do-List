@@ -1,23 +1,5 @@
 import { create } from 'zustand';
-
-type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido';
-
-type ReportStudent = {
-  id: string;
-  name: string;
-  program: string;
-  joinedAt: string;
-  status: StudentStatus;
-  progress: number;
-};
-
-type ReportSession = {
-  id: string;
-  course: string;
-  date: string;
-  status: 'Completada' | 'En curso' | 'Pendiente';
-  duration: number;
-};
+import type { ReportSession, ReportStudent } from '../types/report.types';
 
 interface ReportState {
   students: ReportStudent[];
