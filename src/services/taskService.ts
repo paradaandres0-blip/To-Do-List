@@ -1,6 +1,15 @@
 import api from './api';
 import type { Task, TaskForm } from '../types/task.types';
-import type { PaginatedResponse } from '../types/api.types';
+import type { ApiResponse, PaginatedResponse } from '../types/api.types';
+
+// ── Helper: extraer data de ApiResponse ──
+const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+  const d = response.data;
+  if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
+    return (d as ApiResponse<T>).data;
+  }
+  return d as T;
+};
 
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 const stamp = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -21,15 +30,15 @@ export const getTasksRequest = async (page = 1, pageSize = 10): Promise<Paginate
     const data = MOCK_TASKS.slice(start, start + pageSize).map((task) => ({ ...task }));
     return { data, total, page, pageSize, totalPages };
   }
-  const { data } = await api.get<PaginatedResponse<Task>>('/tasks', { params: { page, pageSize } });
-  return data;
+  const response = await api.get<PaginatedResponse<Task>>('/tasks', { params: { page, pageSize } });
+  return extractData(response);
 };
 export const createTaskRequest = async (payload: TaskForm): Promise<Task> => {
   if (IS_MOCK) {
     const task = { id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2), ...payload, updatedAt: new Date().toISOString() };
     MOCK_TASKS = [task, ...MOCK_TASKS]; return { ...task };
   }
-  const { data } = await api.post<Task>('/tasks', payload); return data;
+  const response = await api.post<ApiResponse<Task>>('/tasks', payload); return extractData(response);
 };
 export const updateTaskRequest = async (id: string, payload: Partial<TaskForm>): Promise<Task> => {
   if (IS_MOCK) {
@@ -38,7 +47,7 @@ export const updateTaskRequest = async (id: string, payload: Partial<TaskForm>):
     MOCK_TASKS[index] = { ...MOCK_TASKS[index], ...payload, updatedAt: new Date().toISOString() };
     return { ...MOCK_TASKS[index] };
   }
-  const { data } = await api.put<Task>(`/tasks/${id}`, payload); return data;
+  const response = await api.put<ApiResponse<Task>>(`/tasks/${id}`, payload); return extractData(response);
 };
 export const deleteTaskRequest = async (id: string): Promise<void> => {
   if (IS_MOCK) { MOCK_TASKS = MOCK_TASKS.filter((task) => task.id !== id); return; }

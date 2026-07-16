@@ -1,5 +1,15 @@
 import api from './api';
+import type { ApiResponse } from '../types/api.types';
 import type { Course } from '../types/course.types';
+
+// ── Helper: extraer data de ApiResponse ──
+const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+  const d = response.data;
+  if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
+    return (d as ApiResponse<T>).data;
+  }
+  return d as T;
+};
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
@@ -40,8 +50,8 @@ export const getCoursesRequest = async (): Promise<Course[]> => {
     await new Promise((r) => setTimeout(r, 400));
     return [...MOCK_COURSES];
   }
-  const { data } = await api.get<Course[]>('/courses');
-  return data;
+  const response = await api.get<ApiResponse<Course[]>>('/courses');
+  return extractData(response);
 };
 
 // ── POST /courses ──
@@ -57,8 +67,8 @@ export const createCourseRequest = async (payload: Omit<Course, 'id' | 'modulesC
     MOCK_COURSES = [newCourse, ...MOCK_COURSES];
     return newCourse;
   }
-  const { data } = await api.post<Course>('/courses', payload);
-  return data;
+  const response = await api.post<ApiResponse<Course>>('/courses', payload);
+  return extractData(response);
 };
 
 // ── PUT /courses/:id ──
@@ -75,8 +85,8 @@ export const updateCourseRequest = async (id: string, payload: Partial<Omit<Cour
     MOCK_COURSES[index] = updated;
     return updated;
   }
-  const { data } = await api.put<Course>(`/courses/${id}`, payload);
-  return data;
+  const response = await api.put<ApiResponse<Course>>(`/courses/${id}`, payload);
+  return extractData(response);
 };
 
 // ── DELETE /courses/:id ──
