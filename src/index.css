@@ -78,3 +78,79 @@ html, body {
   border-color: #f87171;
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
 }
+
+/* Pantalla de recuperación ante errores no controlados. */
+.error-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at top, #312e81, #0f172a 55%);
+  color: #f8fafc;
+}
+
+.error-boundary__card {
+  width: min(100%, 32rem);
+  padding: 2.5rem;
+  text-align: center;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+.error-boundary__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 1rem;
+  border-radius: 9999px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.error-boundary__eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.error-boundary h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.error-boundary__card > p:not(.error-boundary__eyebrow) {
+  margin: 0.75rem 0 1.5rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.error-boundary__reload {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+}
+
+.error-boundary__reload:hover {
+  filter: brightness(1.1);
+}
+
+.error-boundary__reload:focus-visible {
+  outline: 3px solid #c4b5fd;
+  outline-offset: 3px;
+}

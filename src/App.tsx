@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppRouter } from './routes/AppRouter';
 import useAuthStore from './store/authStore';
+import { ErrorBoundary } from './components/common/ErrorBoundary/ErrorBoundary';
 
 function App() {
   const token = useAuthStore((s) => s.token) ?? localStorage.getItem('wf_token');
@@ -42,7 +43,11 @@ function App() {
     );
   }
 
-  return <AppRouter />;
+  return (
+    <ErrorBoundary>
+      <AppRouter />
+    </ErrorBoundary>
+  );
 }
 
 export default App;
