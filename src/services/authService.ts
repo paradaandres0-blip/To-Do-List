@@ -1,4 +1,5 @@
 import api from './api';
+import { API_CONFIG, STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
 
 // ── Tipos ──
 export interface LoginPayload {
@@ -74,7 +75,7 @@ const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
 const readPersistedUser = (): AuthUser | null => {
   try {
-    const raw = localStorage.getItem('wf_auth');
+    const raw = localStorage.getItem(STORAGE_KEYS.auth);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state?: { user?: AuthUser } };
     return parsed.state?.user ?? null;
@@ -89,7 +90,7 @@ const readPersistedUser = (): AuthUser | null => {
 export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse> => {
   // ── Modo mock: simula respuesta del backend ──
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 800)); // simula latencia
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium)); // simula latencia
     const email = payload.email.trim().toLowerCase();
     const password = payload.password;
 
@@ -160,7 +161,7 @@ export const getMeRequest = async (): Promise<AuthUser> => {
 // ────────────────────────────────────────────
 export const refreshRequest = async (refreshToken: string): Promise<RefreshResponse> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
     return { token: 'mock-jwt-token-refreshed-' + Date.now() };
   }
 
@@ -173,7 +174,7 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
 // ────────────────────────────────────────────
 export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
     const base = readPersistedUser() ?? MOCK_ADMIN;
     return { ...base, ...payload };
   }
@@ -192,7 +193,7 @@ export interface ChangePasswordPayload {
 
 export const changePasswordRequest = async (payload: ChangePasswordPayload): Promise<void> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
     // Simula que la contraseña actual incorrecta devuelve error
     if (payload.currentPassword.length < 6) {
       throw { response: { data: { message: 'Contraseña actual incorrecta.' } } };
@@ -208,7 +209,7 @@ export const changePasswordRequest = async (payload: ChangePasswordPayload): Pro
 // ────────────────────────────────────────────
 export const forgotRequest = async (email: string): Promise<{ message: string }> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
     return { message: 'Si el correo existe, recibirás un enlace en breve.' };
   }
   const { data } = await api.post<{ message: string }>('/auth/forgot-password', { email });
@@ -220,7 +221,7 @@ export const forgotRequest = async (email: string): Promise<{ message: string }>
 // ────────────────────────────────────────────
 export const resetRequest = async (token: string, password: string): Promise<{ message: string }> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
     return { message: 'Contraseña restablecida correctamente.' };
   }
   const { data } = await api.post<{ message: string }>('/auth/reset-password', { token, password });
@@ -233,7 +234,7 @@ export const resetRequest = async (token: string, password: string): Promise<{ m
 export interface RegisterPayload { name: string; email: string; password: string; }
 export const registerRequest = async (payload: RegisterPayload): Promise<{ message: string }> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
     return { message: 'Solicitud de acceso enviada. Un administrador revisará tu cuenta.' };
   }
   const { data } = await api.post<{ message: string }>('/auth/register', payload);
@@ -252,15 +253,15 @@ export interface NotificationPrefs {
 
 export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promise<void> => {
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.short));
     return; // en mock no hay backend, pero sí persistimos en localStorage
   }
   await api.patch('/users/me/notifications', prefs);
 };
 
 // ── Tipos y límites para avatar ──
-export const AVATAR_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-export const AVATAR_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const AVATAR_MAX_SIZE = AVATAR_CONFIG.maxSize;
+export const AVATAR_ALLOWED_TYPES = AVATAR_CONFIG.allowedTypes;
 export type AvatarAllowedType = (typeof AVATAR_ALLOWED_TYPES)[number];
 
 export interface AvatarValidationError {
@@ -301,7 +302,7 @@ export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: stri
     // Comprimir antes de convertir a data URL para mock
     const { getCompressedFile } = await import('../utils/imageCompression');
     const compressed = await getCompressedFile(file);
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
     // Convertir a data URL local (comprimido)
     const url = await new Promise<string>((resolve) => {
       const reader = new FileReader();
