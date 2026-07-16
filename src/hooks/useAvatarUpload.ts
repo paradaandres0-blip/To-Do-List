@@ -1,9 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
-import { uploadAvatarRequest } from '../services/authService';
+import { uploadAvatarRequest, AVATAR_MAX_SIZE, AVATAR_ALLOWED_TYPES } from '../services/authService';
+import { cleanAvatarDataUrls } from '../utils/imageCompression';
 import useAuthStore from '../store/authStore';
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export const useAvatarUpload = () => {
   const user    = useAuthStore((s) => s.user);
@@ -27,23 +25,23 @@ export const useAvatarUpload = () => {
     // Reset
     setUploadError(null);
 
-    // Validar tipo
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setUploadError('Solo se permiten imágenes (JPG, PNG, WebP, GIF)');
+    // Validar tipo (más permisivo que el servicio para dar feedback temprano)
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type as any)) {
+      setUploadError(`Solo se permiten imágenes (${AVATAR_ALLOWED_TYPES.map(t => t.split('/')[1]).join(', ')})`);
       return;
     }
 
-    // Validar tamaño
-    if (file.size > MAX_FILE_SIZE) {
-      setUploadError('La imagen no debe superar 5 MB');
+    // Validar tamaño (2MB)
+    if (file.size > AVATAR_MAX_SIZE) {
+      setUploadError(`La imagen no debe superar 2 MB (tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)} MB)`);
       return;
     }
 
-    // Preview inmediato
+    // Preview inmediato (comprimido ligero)
     const localUrl = URL.createObjectURL(file);
     setPreview(localUrl);
 
-    // Subir a la API
+    // Subir a la API (incluye compresión)
     setIsUploading(true);
     try {
       const { avatarUrl } = await uploadAvatarRequest(file);
@@ -52,10 +50,15 @@ export const useAvatarUpload = () => {
         setUser({ ...user, avatar: avatarUrl });
       }
       setPreview(avatarUrl);
+
+      // Limpiar data URLs antiguas de localStorage después de una subida exitosa
+      cleanAvatarDataUrls();
     } catch (err: any) {
-      setUploadError(
-        err?.response?.data?.message || err?.message || 'Error al subir la imagen'
-      );
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Error al subir la imagen';
+      setUploadError(message);
       // Revertir preview
       setPreview(user?.avatar ?? null);
       URL.revokeObjectURL(localUrl);
