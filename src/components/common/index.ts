@@ -7,3 +7,5 @@ export { Table } from './Table/Table';
 export { ErrorBoundary } from './ErrorBoundary/ErrorBoundary';
 export { Pagination } from './Pagination/Pagination';
 export { LazyImage } from './LazyImage/LazyImage';
+export { Loading, Spinner, Dots, Skeleton, Overlay } from './Loading/Loading';
+export { SkeletonCard, SkeletonTable, SkeletonList, SkeletonStatsGrid, SkeletonProfileHeader, SkeletonForm } from './Loading/Skeletons';
