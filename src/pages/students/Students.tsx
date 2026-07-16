@@ -1,9 +1,10 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
+import { Pagination } from '../../components/common/Pagination/Pagination';
 
 type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
 
@@ -61,6 +62,8 @@ const Modal = ({ isOpen, onClose, title, children }: { isOpen:boolean; onClose:(
   );
 };
 
+const PAGE_SIZE = 8;
+
 export const Students = () => {
   const navigate = useNavigate();
   const [students,     setStudents]     = useState<Student[]>(INITIAL);
@@ -73,6 +76,7 @@ export const Students = () => {
   const [deleteId,     setDeleteId]     = useState<string | null>(null);
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
   const [assignModal,  setAssignModal]  = useState<Student | null>(null);
+  const [currentPage,  setCurrentPage]  = useState(1);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
@@ -87,6 +91,21 @@ export const Students = () => {
       && (filterStatus === 'Todos' || s.status === filterStatus)
       && (filterProg   === 'Todos' || s.program === filterProg);
   }), [students, search, filterStatus, filterProg]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus, filterProg]);
 
   const openCreate = () => { setEditing(null); reset({ name:'', email:'', phone:'', program:'', group:'', status:'Activo' }); setModalOpen(true); };
   const openEdit   = (s: Student) => {
@@ -267,7 +286,7 @@ export const Students = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s, i) => (
+            {paginatedItems.map((s, i) => (
               <tr key={s.id} className="hover:bg-slate-50 transition-colors cursor-pointer"
                 style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none' }}>
                 <td className="px-5 py-4" onClick={() => setViewStudent(s)}>
@@ -315,13 +334,21 @@ export const Students = () => {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && (
+        {filtered.length === 0 && paginatedItems.length === 0 && (
           <div className="py-16 text-center" style={{ color:'#94a3b8' }}>
             <Users size={36} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm font-medium">No se encontraron alumnos</p>
           </div>
         )}
       </div>
+
+      <Pagination
+        page={currentPage}
+        pageSize={PAGE_SIZE}
+        total={filtered.length}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
 
       <button onClick={() => navigate('/dashboard')} className="text-xs font-medium hover:underline" style={{ color:'#94a3b8' }}>
         ← Volver al Dashboard

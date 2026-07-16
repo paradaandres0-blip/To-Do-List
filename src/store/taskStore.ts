@@ -16,7 +16,10 @@ interface TaskState {
 
 const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
-  loadTasks: async () => set({ tasks: await getTasksRequest() }),
+  loadTasks: async () => {
+    const response = await getTasksRequest();
+    set({ tasks: response.data });
+  },
   addTask: async (data) => {
     const created = await createTaskRequest(data);
     set((state) => ({ tasks: [created, ...state.tasks] }));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,7 @@ import {
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
 import { Modal } from '../../components/common/Modal/Modal';
+import { Pagination } from '../../components/common/Pagination/Pagination';
 import type { Teacher, TeacherFormValues, TeacherStatus } from '../../types/teacher.types';
 import { TEACHER_SPECIALTY_OPTIONS } from '../../types/teacher.types';
 import {
@@ -25,6 +26,8 @@ const STATUS_STYLE: Record<TeacherStatus, string> = {
   Licencia: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
+const PAGE_SIZE = 8;
+
 export const Teachers = () => {
   const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -33,6 +36,7 @@ export const Teachers = () => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<TeacherStatus | 'Todos'>('Todos');
   const [formError, setFormError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Teacher | null>(null);
@@ -59,8 +63,8 @@ export const Teachers = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await getTeachersRequest();
-        setTeachers(data);
+        const response = await getTeachersRequest();
+        setTeachers(response.data);
       } catch (err) {
         console.error('Error al cargar docentes:', err);
       } finally {
@@ -83,6 +87,21 @@ export const Teachers = () => {
       return matchSearch && matchStatus;
     });
   }, [teachers, search, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus]);
 
   const counts = useMemo(
     () => ({
@@ -265,11 +284,11 @@ export const Teachers = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((teacher, i) => (
+              {paginatedItems.map((teacher, i) => (
                 <tr
                   key={teacher.id}
                   className="hover:bg-slate-50 transition-colors"
-                  style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none' }}
+                  style={{ borderBottom: i < paginatedItems.length - 1 ? '1px solid #f8fafc' : 'none' }}
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -348,7 +367,7 @@ export const Teachers = () => {
             </tbody>
           </table>
 
-          {filtered.length === 0 && (
+          {filtered.length === 0 && paginatedItems.length === 0 && (
             <div className="py-16 text-center" style={{ color: '#94a3b8' }}>
               <GraduationCap size={36} className="mx-auto mb-2 opacity-30" />
               <p className="text-sm font-medium">No hay docentes para mostrar</p>
@@ -363,6 +382,16 @@ export const Teachers = () => {
             </div>
           )}
         </div>
+      )}
+
+      {filtered.length > 0 && !isLoading && (
+        <Pagination
+          page={currentPage}
+          pageSize={PAGE_SIZE}
+          total={filtered.length}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       )}
 
       {/* Modal crear / editar */}

@@ -34,9 +34,15 @@ let MOCK_STUDENTS: Student[] = [
 
 const clone = (student: Student) => ({ ...student });
 
-export const getStudentsRequest = async (): Promise<PaginatedResponse<Student>> => {
-  if (IS_MOCK) return { data: MOCK_STUDENTS.map(clone), total: MOCK_STUDENTS.length, page: 1, pageSize: 20, totalPages: 1 };
-  const { data } = await api.get<PaginatedResponse<Student>>('/students');
+export const getStudentsRequest = async (page = 1, pageSize = 10): Promise<PaginatedResponse<Student>> => {
+  if (IS_MOCK) {
+    const total = MOCK_STUDENTS.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const data = MOCK_STUDENTS.slice(start, start + pageSize).map(clone);
+    return { data, total, page, pageSize, totalPages };
+  }
+  const { data } = await api.get<PaginatedResponse<Student>>('/students', { params: { page, pageSize } });
   return data;
 };
 

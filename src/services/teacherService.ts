@@ -4,6 +4,7 @@ import type {
   Teacher,
   UpdateTeacherPayload,
 } from '../types/teacher.types';
+import type { PaginatedResponse } from '../types/api.types';
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
@@ -40,12 +41,16 @@ let MOCK_TEACHERS: Teacher[] = [
 ];
 
 // ── GET /teachers ──
-export const getTeachersRequest = async (): Promise<Teacher[]> => {
+export const getTeachersRequest = async (page = 1, pageSize = 10): Promise<PaginatedResponse<Teacher>> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, 400));
-    return [...MOCK_TEACHERS];
+    const total = MOCK_TEACHERS.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const data = MOCK_TEACHERS.slice(start, start + pageSize).map((t) => ({ ...t }));
+    return { data, total, page, pageSize, totalPages };
   }
-  const { data } = await api.get<Teacher[]>('/teachers');
+  const { data } = await api.get<PaginatedResponse<Teacher>>('/teachers', { params: { page, pageSize } });
   return data;
 };
 

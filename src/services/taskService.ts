@@ -1,5 +1,6 @@
 import api from './api';
 import type { Task, TaskForm } from '../types/task.types';
+import type { PaginatedResponse } from '../types/api.types';
 
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 const stamp = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -12,9 +13,15 @@ let MOCK_TASKS: Task[] = [
   { id:'6', title:'Técnicas de Respiración', course:'Bienestar Mental', due:'2025-07-28', priority:'Alta', status:'En desarrollo', updatedAt:stamp(96) },
 ];
 
-export const getTasksRequest = async (): Promise<Task[]> => {
-  if (IS_MOCK) return MOCK_TASKS.map((task) => ({ ...task }));
-  const { data } = await api.get<Task[]>('/tasks');
+export const getTasksRequest = async (page = 1, pageSize = 10): Promise<PaginatedResponse<Task>> => {
+  if (IS_MOCK) {
+    const total = MOCK_TASKS.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const data = MOCK_TASKS.slice(start, start + pageSize).map((task) => ({ ...task }));
+    return { data, total, page, pageSize, totalPages };
+  }
+  const { data } = await api.get<PaginatedResponse<Task>>('/tasks', { params: { page, pageSize } });
   return data;
 };
 export const createTaskRequest = async (payload: TaskForm): Promise<Task> => {
