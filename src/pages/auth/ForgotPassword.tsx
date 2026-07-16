@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, ArrowRight } from 'lucide-react';
 import { forgotRequest } from '../../services/authService';
-
-interface FormInputs { email: string }
+import { forgotPasswordSchema, type ForgotPasswordFormValues } from '../../schemas/auth.schema';
 
 export const ForgotPassword = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<ForgotPasswordFormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (data: FormInputs) => {
+  const onSubmit = async (data: ForgotPasswordFormValues) => {
     setError(null);
     setMessage(null);
     setLoading(true);

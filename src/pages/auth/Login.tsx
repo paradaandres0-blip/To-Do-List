@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Dumbbell, Apple, Brain, Flame } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-
-interface LoginFormInputs {
-  email:    string;
-  password: string;
-}
+import { loginSchema, type LoginFormValues } from '../../schemas/auth.schema';
 
 const FLOATING_ICONS = [
   { icon: Dumbbell, top: '5%',    left: '5%',   size: 42, rotate: '-20deg', color: '#a78bfa', opacity: 0.35 },
@@ -23,9 +20,11 @@ export const Login = () => {
   const { handleLogin, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormInputs>();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const onSubmit = async (data: LoginFormInputs) => {
+  const onSubmit = async (data: LoginFormValues) => {
     clearError();
     try {
       await handleLogin(data.email, data.password);

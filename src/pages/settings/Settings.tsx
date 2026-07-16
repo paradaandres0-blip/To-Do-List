@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Lock, Bell, Building2, Save, Eye, EyeOff, Camera, Loader } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import useAuthStore from '../../store/authStore';
 import { updateProfileRequest, changePasswordRequest } from '../../services/authService';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
+import { changePasswordSchema, profileSchema } from '../../schemas/auth.schema';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -36,6 +38,7 @@ export const Settings = () => {
   });
 
   const { register: regP, handleSubmit: hsP, formState: { errors: errP }, reset } = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name ?? '',
       email: user?.email ?? '',
@@ -43,7 +46,9 @@ export const Settings = () => {
       city: user?.city ?? 'Bogotá, Colombia',
     },
   });
-  const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch, reset: resetPwd } = useForm<PasswordForm>();
+  const { register: regS, handleSubmit: hsS, formState: { errors: errS }, watch, reset: resetPwd } = useForm<PasswordForm>({
+    resolver: zodResolver(changePasswordSchema),
+  });
 
   // ── Notificaciones: hook con auto-save ──
   const { prefs: notifs, toggle: toggleNotif, saveAll: saveAllNotifs, syncStatus } = useNotifications();
