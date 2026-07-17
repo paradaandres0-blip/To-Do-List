@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loginRequest, logoutRequest, getMeRequest, validateAvatarFile, AVATAR_MAX_SIZE, AVATAR_ALLOWED_TYPES } from '../../services/authService';
+import { loginRequest, logoutRequest, getMeRequest, validateAvatarFile } from '../../services/authService';
 
 // Mock localStorage
 const localStorageMock = (() => {

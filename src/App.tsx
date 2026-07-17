@@ -10,7 +10,6 @@ function App() {
 
   useEffect(() => {
     if (!token) {
-      setReady(true);
       return;
     }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import useAuthStore from '../../store/authStore';
 
@@ -77,7 +77,7 @@ describe('authStore', () => {
           email: 'wrong@test.com',
           password: 'wrong',
         });
-      } catch (e) {
+      } catch {
         // Expected to throw
       }
     });

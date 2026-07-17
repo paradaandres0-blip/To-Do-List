@@ -8,6 +8,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
 import { LazyImage } from '../../components/common';
 import { changePasswordSchema, profileSchema } from '../../schemas/auth.schema';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 interface ProfileForm { name: string; email: string; phone: string; city: string; }
 interface PasswordForm { current: string; newPass: string; confirm: string; }
@@ -60,7 +61,9 @@ export const Settings = () => {
   useEffect(() => {
     const storedOrg = localStorage.getItem('wf_org');
     if (storedOrg) {
-      try { setOrgInfo(JSON.parse(storedOrg)); } catch {};
+      try { setOrgInfo(JSON.parse(storedOrg)); } catch {
+        // valor persistido corrupto: ignoramos y mantenemos el default
+      }
     }
   }, []);
 
@@ -86,9 +89,8 @@ export const Settings = () => {
         setUser({ ...user, ...updatedUser });
       }
       showToast('Cambios guardados correctamente', 'success');
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.message || err?.message || 'Error de red al conectar con el servidor';
-      showToast(errMsg, 'error');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Error de red al conectar con el servidor'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -103,9 +105,8 @@ export const Settings = () => {
       });
       showToast('Contraseña actualizada correctamente', 'success');
       resetPwd();
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.message || err?.message || 'Error de red al cambiar la contraseña';
-      showToast(errMsg, 'error');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Error de red al cambiar la contraseña'), 'error');
     } finally {
       setIsSavingPwd(false);
     }

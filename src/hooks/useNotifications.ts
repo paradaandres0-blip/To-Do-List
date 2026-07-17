@@ -14,7 +14,9 @@ const loadFromStorage = (): NotificationPrefs => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
-  } catch {}
+  } catch {
+    // localStorage puede lanzar si está lleno o en modo privado
+  }
   return DEFAULT_PREFS;
 };
 
@@ -27,11 +29,6 @@ export const useNotifications = () => {
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadFromStorage);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cargar desde localStorage al montar (por si hay cambio desde otra pestaña)
-  useEffect(() => {
-    setPrefs(loadFromStorage());
-  }, []);
 
   // Guardar en API con debounce de 800ms para no spamear en múltiples toggles rápidos
   const syncToApi = useCallback((newPrefs: NotificationPrefs) => {

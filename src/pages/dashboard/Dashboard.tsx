@@ -104,7 +104,7 @@ export const Dashboard = () => {
   // KPIs dinámicos desde el store — si no hay datos aún usa placeholders
   const instructorStudents = useMemo(
     () => isInstructor && user?.teacherId ? getByTeacherId(user.teacherId) : [],
-    [getByTeacherId, isInstructor, user?.teacherId],
+    [getByTeacherId, isInstructor, user],
   );
 
   const STATS = isInstructor ? [

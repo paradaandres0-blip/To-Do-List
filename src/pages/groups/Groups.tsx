@@ -3,6 +3,9 @@ import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2 } from 'luc
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
 
+// Genera un id único sin usar Math.random (evita impureza en render)
+const generateId = () => crypto.randomUUID();
+
 const INITIAL_GROUPS: Group[] = [
   { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso',      members: ['Laura Gómez', 'Diego Torres', 'Mariana López', 'Camila Pérez'] },
   { id: '2', name: 'Programa Nutrición Pro',        org: 'WorkFlow Academy',        mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones', members: ['Andrés Ramírez', 'Alejandra Ortiz', 'Sergio Díaz', 'Natalia Soto'] },
@@ -46,7 +49,7 @@ export const Groups = () => {
     if (editingGroup) {
       setGroups((prev) => prev.map((g) => g.id === editingGroup.id ? { ...g, ...data } : g));
     } else {
-      setGroups([{ id: Math.random().toString(36).slice(2), ...data, students: 0, status: 'Inscripciones', members: [] }, ...groups]);
+      setGroups([{ id: generateId(), ...data, students: 0, status: 'Inscripciones', members: [] }, ...groups]);
     }
     setIsOpen(false);
     setEditingGroup(null);
