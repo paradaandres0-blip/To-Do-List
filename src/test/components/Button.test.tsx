@@ -22,7 +22,7 @@ describe('Button', () => {
 
   it('shows loading state', () => {
     render(<Button isLoading>Loading</Button>);
-    expect(screen.getByText('Loading').className).toContain('opacity-50');
+    expect(screen.getByText('Loading').className).toContain('opacity-60');
   });
 
   it('applies variant classes correctly', () => {
