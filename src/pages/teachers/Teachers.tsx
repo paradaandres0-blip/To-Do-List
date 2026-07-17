@@ -19,6 +19,7 @@ import {
   deleteTeacherRequest,
 } from '../../services/teacherService';
 import { teacherSchema } from '../../schemas/teacher.schema';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 const STATUS_STYLE: Record<TeacherStatus, string> = {
   Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -169,8 +170,7 @@ export const Teachers = () => {
       }
       closeModal();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'No se pudo guardar el docente';
+      const message = getErrorMessage(err, 'No se pudo guardar el docente');
       setFormError(message);
     } finally {
       setIsSaving(false);

@@ -6,6 +6,7 @@ import useAuthStore from '../../store/authStore';
 import useStudentStore from '../../store/studentStore';
 import type { Teacher } from '../../types/teacher.types';
 import { getTeacherByIdRequest, updateTeacherRequest } from '../../services/teacherService';
+import { getErrorMessage } from '../../utils/errorMessage';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
 import { Modal } from '../../components/common/Modal/Modal';
@@ -108,7 +109,7 @@ export const MyTeacherProfile = () => {
       setTeacher(updated);
       closeEdit();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo actualizar el perfil';
+      const message = getErrorMessage(err, 'No se pudo actualizar el perfil');
       setFormError(message);
     } finally {
       setIsSaving(false);

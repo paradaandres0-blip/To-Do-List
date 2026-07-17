@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createTaskRequest, deleteTaskRequest, getTasksRequest, updateTaskRequest } from '../services/taskService';
 import type { Task, TaskForm } from '../types/task.types';
 import { TASK_STATUSES } from '../types/task.types';
+import { getErrorMessage } from '../utils/errorMessage';
 
 interface TaskState {
   tasks: Task[];
@@ -24,7 +25,7 @@ const useTaskStore = create<TaskState>((set, get) => ({
       const response = await getTasksRequest();
       set({ tasks: response.data, error: null });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al cargar las tareas';
+      const message = getErrorMessage(err, 'Error al cargar las tareas');
       set({ error: message });
       console.error('Error al cargar tareas:', err);
     }
