@@ -48,5 +48,21 @@
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
-  }
+  },
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/paradaandres0/to-do-list.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://gitlab.com/paradaandres0/to-do-list/issues"
+  },
+  "homepage": "https://gitlab.com/paradaandres0/to-do-list#readme"
 }
