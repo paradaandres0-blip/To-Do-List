@@ -1,5 +1,3 @@
-import { COLORS } from '../../../constants/colors';
-
 // ── Skeleton Card ──
 export const SkeletonCard = ({ lines = 3 }: { lines?: number }) => (
   <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">

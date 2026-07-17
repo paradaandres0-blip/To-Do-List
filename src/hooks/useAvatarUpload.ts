@@ -26,7 +26,7 @@ export const useAvatarUpload = () => {
     setUploadError(null);
 
     // Validar tipo (más permisivo que el servicio para dar feedback temprano)
-    if (!AVATAR_ALLOWED_TYPES.includes(file.type as any)) {
+    if (!AVATAR_ALLOWED_TYPES.some((type) => type === file.type)) {
       setUploadError(`Solo se permiten imágenes (${AVATAR_ALLOWED_TYPES.map(t => t.split('/')[1]).join(', ')})`);
       return;
     }
@@ -53,11 +53,9 @@ export const useAvatarUpload = () => {
 
       // Limpiar data URLs antiguas de localStorage después de una subida exitosa
       cleanAvatarDataUrls();
-    } catch (err: any) {
+    } catch (err) {
       const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Error al subir la imagen';
+        err instanceof Error ? err.message : 'Error al subir la imagen';
       setUploadError(message);
       // Revertir preview
       setPreview(user?.avatar ?? null);

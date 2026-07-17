@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, ArrowRight } from 'lucide-react';
 import { forgotRequest } from '../../services/authService';
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from '../../schemas/auth.schema';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 export const ForgotPassword = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<ForgotPasswordFormValues>({
@@ -20,8 +21,8 @@ export const ForgotPassword = () => {
     try {
       const res = await forgotRequest(data.email);
       setMessage(res.message ?? 'Revisa tu correo para continuar.');
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Error al solicitar recuperación');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Error al solicitar recuperación'));
     } finally {
       setLoading(false);
     }

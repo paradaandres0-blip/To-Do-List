@@ -3,6 +3,9 @@ import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye } 
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
 
+// Genera un id único sin usar Math.random (evita impureza en render)
+const generateId = () => crypto.randomUUID();
+
 interface Organization {
   id: string;
   name: string;
@@ -85,7 +88,7 @@ export const Organizations = () => {
     } else {
       setOrgs([
         {
-          id: Math.random().toString(36).slice(2),
+          id: generateId(),
           ...data,
           groups: 0,
           students: 0,

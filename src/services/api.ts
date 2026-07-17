@@ -38,6 +38,23 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ── Cola de refresh: estado fuera de la instancia para evitar `any` ──
+interface FailedQueueItem {
+  resolve: (token: string) => void;
+  reject:  (err: unknown) => void;
+}
+
+let isRefreshing = false;
+let failedQueue: FailedQueueItem[] = [];
+
+const processQueue = (token: string | null, err: unknown = null) => {
+  failedQueue.forEach((prom) => {
+    if (token) prom.resolve(token);
+    else prom.reject(err);
+  });
+  failedQueue = [];
+};
+
 // ── Response interceptor: validación de respuestas + manejo global de errores ──
 api.interceptors.response.use(
   (response) => {
@@ -85,12 +102,9 @@ api.interceptors.response.use(
       }
 
       // Cola para peticiones que lleguen mientras se refresca
-      if (!(api as any)._isRefreshing) {
-        (api as any)._isRefreshing = true;
-        (api as any)._failedQueue = [] as Array<{
-          resolve: (token: string) => void;
-          reject: (err: any) => void;
-        }>;
+      if (!isRefreshing) {
+        isRefreshing = true;
+        failedQueue = [];
 
         const refreshClient = axios.create({ baseURL: api.defaults.baseURL });
         refreshClient.post('/auth/refresh', { refreshToken })
@@ -102,26 +116,16 @@ api.interceptors.response.use(
             }
 
             // Resolver todas las promesas en cola con el nuevo token
-            (api as any)._failedQueue.forEach((prom: { resolve: (token: string) => void; reject: (err: any) => void }) => {
-              if (newToken) {
-                prom.resolve(newToken);
-              } else {
-                prom.reject(new Error('No se recibió token en refresh'));
-              }
-            });
-            (api as any)._failedQueue = [];
+            processQueue(newToken ?? null, new Error('No se recibió token en refresh'));
           })
           .catch((err) => {
             // Refresh también falló → sesión expirada definitivamente
-            (api as any)._failedQueue.forEach((prom: { resolve: (token: string) => void; reject: (err: any) => void }) => {
-              prom.reject(err);
-            });
-            (api as any)._failedQueue = [];
+            processQueue(null, err);
             clearAuthState();
             window.location.href = '/auth/login';
           })
           .finally(() => {
-            (api as any)._isRefreshing = false;
+            isRefreshing = false;
           });
       }
 
@@ -130,13 +134,13 @@ api.interceptors.response.use(
 
       // Agregar a la cola de espera
       return new Promise((resolve, reject) => {
-        (api as any)._failedQueue.push({
+        failedQueue.push({
           resolve: (token: string) => {
             if (!originalRequest.headers) originalRequest.headers = {};
             originalRequest.headers['Authorization'] = `Bearer ${token}`;
             resolve(axios(originalRequest));
           },
-          reject: (err: any) => reject(err),
+          reject: (err: unknown) => reject(err),
         });
       });
     }

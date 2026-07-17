@@ -4,7 +4,7 @@ import type { ReportSession, ReportStudent } from '../types/report.types';
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 export interface ReportData { students: ReportStudent[]; sessions: ReportSession[]; programs: string[]; }
 
-let MOCK_REPORTS: ReportData = {
+const MOCK_REPORTS: ReportData = {
   students: [
     { id:'1', name:'Mariana López', program:'Entrenamiento Funcional', joinedAt:'2025-06-04', status:'Activo', progress:82 },
     { id:'2', name:'Carlos Ruiz', program:'Nutrición Deportiva', joinedAt:'2025-06-15', status:'Activo', progress:67 },

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { resetRequest } from '../../services/authService';
 import { resetPasswordSchema, type ResetPasswordFormValues } from '../../schemas/auth.schema';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 export const ResetPassword = () => {
   const { token } = useParams<{ token: string }>();
@@ -26,8 +27,8 @@ export const ResetPassword = () => {
       const res = await resetRequest(token, data.password);
       setMessage(res.message ?? 'Contraseña actualizada.');
       setTimeout(() => navigate('/auth/login'), 1400);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Error al resetear contraseña');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Error al resetear contraseña'));
     } finally {
       setLoading(false);
     }

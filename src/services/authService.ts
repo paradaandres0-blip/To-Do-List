@@ -1,5 +1,5 @@
 import api from './api';
-import { API_CONFIG, STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
+import { STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
 
 // ── Tipos ──
 export interface LoginPayload {

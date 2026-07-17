@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, User, Lock, ArrowRight } from 'lucide-react';
 import { registerRequest } from '../../services/authService';
 import { registerSchema, type RegisterFormValues } from '../../schemas/auth.schema';
+import { getErrorMessage } from '../../utils/errorMessage';
 
 export const Register = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
@@ -21,8 +22,8 @@ export const Register = () => {
     try {
       const res = await registerRequest({ name: data.name, email: data.email, password: data.password });
       setMessage(res.message ?? 'Registro exitoso. Revisa tu correo para activar tu cuenta.');
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Error al registrar usuario');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Error al registrar usuario'));
     } finally {
       setLoading(false);
     }
