@@ -4,6 +4,7 @@ import type { AuthUser, LoginPayload } from '../services/authService';
 import { getMeRequest, loginRequest, logoutRequest } from '../services/authService';
 
 import api from '../services/api';
+import { getErrorMessage } from '../utils/errorMessage';
 
 // ── Tipos del store ──
 interface AuthState {
@@ -44,9 +45,7 @@ const useAuthStore = create<AuthState>()(
 
           set({ user, token, refreshToken: refreshToken ?? null, isLoading: false, error: null });
         } catch (err: unknown) {
-          const message =
-            (err as { response?: { data?: { message?: string } } })
-              .response?.data?.message ?? 'Credenciales incorrectas';
+          const message = getErrorMessage(err, 'Credenciales incorrectas');
           set({ isLoading: false, error: message });
           throw err; // re-throw para que el componente pueda manejarlo
         }
