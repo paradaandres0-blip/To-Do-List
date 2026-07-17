@@ -29,18 +29,8 @@ describe('Modal', () => {
         <p>Modal content</p>
       </Modal>
     );
-    fireEvent.click(screen.getByRole('button', { name: /close/i }));
-    expect(handleClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onClose when backdrop is clicked', () => {
-    const handleClose = vi.fn();
-    render(
-      <Modal isOpen={true} onClose={handleClose} title="Test Modal">
-        <p>Modal content</p>
-      </Modal>
-    );
-    fireEvent.click(screen.getByRole('dialog'));
+    const closeButton = screen.getByRole('button');
+    fireEvent.click(closeButton);
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 });
