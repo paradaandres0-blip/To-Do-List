@@ -6,12 +6,123 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-// Modelo temporal para generar el cliente de Prisma
-// Se eliminará cuando se implementen los modelos reales en BACK-003
-model Temp {
-  id Int @id @default(autoincrement())
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("STUDENT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher  Teacher?
+  student  Student?
+
+  @@map("users")
+}
+
+model Teacher {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  name        String
+  email       String
+  phone       String
+  city        String
+  specialties String
+  status      String   @default("ACTIVO")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students   Student[]
+  sessions   Session[]
+  reports    Report[]
+
+  @@map("teachers")
+}
+
+model Student {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  phone         String
+  program       String
+  group         String
+  status        String   @default("PENDIENTE")
+  sessionsCount Int      @default(0)
+  progress      Int      @default(0)
+  teacherId     String?
+  userId        String?  @unique
+  joinedAt      DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher  Teacher?  @relation(fields: [teacherId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@map("students")
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  duration    Int
+  status      String   @default("BORRADOR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions Session[]
+
+  @@map("courses")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  courseId    String
+  teacherId   String
+  studentId   String
+  date        DateTime
+  status      String   @default("PROGRAMADA")
+  duration    Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher  Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  generatedBy  String
+  generatedAt  DateTime @default(now())
+  data         String
+
+  teacher Teacher @relation(fields: [generatedBy], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("PENDIENTE")
+  priority    String   @default("MEDIA")
+  dueDate     DateTime?
+  assignedTo  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tasks")
 }
