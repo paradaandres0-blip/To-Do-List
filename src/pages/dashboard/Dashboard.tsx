@@ -259,6 +259,46 @@ export const Dashboard = () => {
         </div>
       )}
 
+      {/* Credenciales de prueba */}
+      <motion.div {...fade(0.1)} className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-5 border border-purple-100">
+        <div className="flex items-center gap-2 mb-3">
+          <GraduationCap size={18} className="text-purple-600" />
+          <h3 className="text-sm font-bold text-slate-900">Credenciales de Prueba</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-white rounded-xl p-3 border border-purple-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">A</span>
+              </div>
+              <span className="text-xs font-bold text-slate-900">Admin</span>
+            </div>
+            <p className="text-xs text-slate-600">Email: admin@workflow.academy</p>
+            <p className="text-xs text-slate-600">Pass: Admin123!</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 border border-yellow-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">D</span>
+              </div>
+              <span className="text-xs font-bold text-slate-900">Docente</span>
+            </div>
+            <p className="text-xs text-slate-600">Email: docente@workflow.academy</p>
+            <p className="text-xs text-slate-600">Pass: Docente123!</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 border border-green-200">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">E</span>
+              </div>
+              <span className="text-xs font-bold text-slate-900">Estudiante</span>
+            </div>
+            <p className="text-xs text-slate-600">Email: estudiante@workflow.academy</p>
+            <p className="text-xs text-slate-600">Pass: Estudiante123!</p>
+          </div>
+        </div>
+      </motion.div>
+
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {STATS.map((s, i) => (

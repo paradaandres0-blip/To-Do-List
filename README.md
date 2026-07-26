@@ -10,12 +10,6 @@ Sistema de gestión educativa full-stack con autenticación JWT, gestión de rol
 - [Instalación](#instalación)
 - [Configuración](#configuración)
 - [Ejecución](#ejecución)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Variables de Entorno](#variables-de-entorno)
-- [API Endpoints](#api-endpoints)
-- [Testing](#testing)
-- [Despliegue](#despliegue)
-- [Contribución](#contribución)
 
 ## ✨ Características
 
@@ -45,13 +39,6 @@ Sistema de gestión educativa full-stack con autenticación JWT, gestión de rol
 - Métricas de rendimiento
 - Exportación de datos
 
-### 🎨 Interfaz de Usuario
-- Diseño moderno con TailwindCSS
-- Animaciones con Framer Motion
-- Responsive design
-- Iconos con Lucide React
-- Formularios validados con Zod
-
 ## 🛠 Tecnologías
 
 ### Frontend
@@ -78,36 +65,59 @@ Sistema de gestión educativa full-stack con autenticación JWT, gestión de rol
 - **Helmet 8.3.0** - Seguridad HTTP
 - **CORS** - Cross-Origin Resource Sharing
 
-### Testing
-- **Vitest 4.1.10** - Framework de testing
-- **Testing Library** - Testing de componentes React
-- **Jest DOM** - Utilidades para testing DOM
-
 ## 🏗 Arquitectura
 
 ```
 to-do-list/
-├── frontend/                 # Aplicación React
-│   ├── src/
-│   │   ├── pages/          # Páginas de la aplicación
-│   │   ├── components/     # Componentes reutilizables
-│   │   ├── services/       # Servicios de API
-│   │   ├── store/          # Estado global (Zustand)
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── schemas/        # Esquemas de validación (Zod)
-│   │   ├── types/          # Definiciones TypeScript
-│   │   ├── utils/          # Utilidades
-│   │   └── routes/         # Configuración de rutas
-│   └── public/             # Archivos estáticos
-├── backend/                 # API Express
+├── src/                      # Frontend (React)
+│   ├── pages/               # Páginas de la aplicación
+│   │   ├── auth/           # Login, registro, recuperación
+│   │   ├── courses/        # Gestión de cursos
+│   │   ├── dashboard/      # Panel principal
+│   │   ├── groups/         # Gestión de grupos
+│   │   ├── modules/        # Módulos educativos
+│   │   ├── organizations/  # Gestión de organizaciones
+│   │   ├── profile/        # Perfil de usuario
+│   │   ├── reports/        # Reportes y métricas
+│   │   ├── settings/       # Configuración
+│   │   ├── students/       # Gestión de estudiantes
+│   │   ├── tasks/          # Gestión de tareas
+│   │   └── teachers/       # Gestión de profesores
+│   ├── components/         # Componentes reutilizables
+│   │   ├── common/         # Button, Input, Card, Table, etc.
+│   │   └── layout/         # Layouts de la aplicación
+│   ├── services/           # Servicios de API
+│   │   ├── api.ts          # Configuración de Axios
+│   │   ├── authService.ts  # Servicios de autenticación
+│   │   ├── studentService.ts
+│   │   ├── teacherService.ts
+│   │   └── taskService.ts
+│   ├── store/              # Estado global (Zustand)
+│   │   ├── authStore.ts    # Estado de autenticación
+│   │   ├── studentStore.ts
+│   │   └── taskStore.ts
+│   ├── routes/             # Configuración de rutas
+│   │   ├── AppRouter.tsx   # Router principal
+│   │   ├── PrivateRoute.tsx # Rutas protegidas
+│   │   └── RoleGate.tsx    # Control por roles
+│   ├── schemas/            # Validación con Zod
+│   ├── types/              # Definiciones TypeScript
+│   ├── hooks/              # Custom hooks
+│   ├── utils/              # Utilidades
+│   ├── layouts/            # Layouts de la aplicación
+│   ├── App.tsx             # Componente principal
+│   └── main.tsx            # Punto de entrada
+├── backend/                # Backend (Express)
 │   ├── src/
 │   │   ├── routes/         # Rutas de la API
+│   │   │   └── authRoutes.ts
 │   │   ├── services/       # Lógica de negocio
+│   │   │   └── authService.ts
 │   │   ├── middleware/     # Middleware de autenticación
 │   │   ├── config/         # Configuraciones
-│   │   ├── validators/     # Validación de datos
-│   │   └── scripts/        # Scripts de utilidad
-│   └── prisma/             # Esquemas de base de datos
+│   │   └── validators/     # Validación de datos
+│   ├── prisma/             # Esquemas de base de datos
+│   └── index.ts            # Punto de entrada
 └── docs/                   # Documentación
 ```
 
@@ -124,13 +134,9 @@ git clone https://github.com/paradaandres0-blip/To-Do-List.git
 cd To-Do-List
 ```
 
-### Instalar dependencias del Frontend
+### Instalar dependencias
 ```bash
 npm install
-```
-
-### Instalar dependencias del Backend
-```bash
 cd backend
 npm install
 cd ..
@@ -138,244 +144,34 @@ cd ..
 
 ## ⚙️ Configuración
 
-### Configuración del Backend
-
-1. Copiar el archivo de ejemplo de variables de entorno:
-```bash
-cd backend
-cp .env.example .env
-```
-
-2. Configurar las variables de entorno en `backend/.env`:
+### Backend (.env)
 ```env
 PORT=3000
 NODE_ENV=development
 DATABASE_URL="postgresql://user:password@localhost:5432/workflow_academy"
 JWT_SECRET=your-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret-key
-JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=7d
-CORS_ORIGIN=http://localhost:5173
-```
-
-3. Configurar la base de datos PostgreSQL:
-```bash
-# Crear base de datos
-createdb workflow_academy
-
-# Generar cliente Prisma
-npm run db:generate
-
-# Sincronizar esquema con base de datos
-npm run db:push
-```
-
-### Configuración del Frontend
-
-1. Copiar el archivo de ejemplo de variables de entorno:
-```bash
-cp .env.example .env
-```
-
-2. Configurar las variables de entorno en `.env`:
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-## 🚀 Ejecución
-
-### Iniciar el Backend
-```bash
-cd backend
-npm run dev
-```
-El servidor estará disponible en `http://localhost:3000`
-
-### Iniciar el Frontend
-```bash
-npm run dev
-```
-La aplicación estará disponible en `http://localhost:5173`
-
-### Scripts Disponibles
-
-#### Frontend
-```bash
-npm run dev       # Iniciar servidor de desarrollo
-npm run build     # Compilar para producción
-npm run preview   # Previsualizar build de producción
-npm run lint      # Ejecutar ESLint
-npm run test      # Ejecutar tests
-npm run test:run  # Ejecutar tests en modo CI
-npm run test:coverage  # Ejecutar tests con cobertura
-```
-
-#### Backend
-```bash
-npm run dev       # Iniciar servidor con hot reload
-npm run build     # Compilar TypeScript
-npm start         # Iniciar servidor en producción
-npm run db:generate  # Generar cliente Prisma
-npm run db:push  # Sincronizar esquema con DB
-npm run db:studio  # Abrir Prisma Studio
-```
-
-## 📁 Estructura del Proyecto
-
-### Frontend - Páginas Principales
-- `auth/` - Login, registro, recuperación de contraseña
-- `courses/` - Gestión de cursos
-- `dashboard/` - Panel principal con estadísticas
-- `groups/` - Gestión de grupos de estudio
-- `modules/` - Módulos educativos
-- `organizations/` - Gestión de organizaciones
-- `profile/` - Perfil de usuario
-- `reports/` - Reportes y métricas
-- `settings/` - Configuración de la aplicación
-- `students/` - Gestión de estudiantes
-- `tasks/` - Gestión de tareas
-- `teachers/` - Gestión de profesores
-
-### Backend - Estructura de API
-- `routes/` - Definición de endpoints REST
-- `services/` - Lógica de negocio y acceso a datos
-- `middleware/` - Autenticación y autorización
-- `config/` - Configuración de logger y base de datos
-- `validators/` - Validación de entrada de datos
-- `scripts/` - Scripts de mantenimiento y testing
-
-## 🔐 Variables de Entorno
-
-### Backend (.env)
-```env
-# Servidor
-PORT=3000
-NODE_ENV=development
-
-# Base de Datos
-DATABASE_URL="postgresql://user:password@localhost:5432/workflow_academy"
-
-# JWT
-JWT_SECRET=your-super-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret-key
-JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=7d
-
-# CORS
 CORS_ORIGIN=http://localhost:5173
 ```
 
 ### Frontend (.env)
 ```env
-# API URL
 VITE_API_URL=http://localhost:3000
+VITE_AUTH_MODE=mock
 ```
 
-## 🔌 API Endpoints
+## 🚀 Ejecución
 
-### Autenticación
-- `POST /api/auth/register` - Registro de usuario
-- `POST /api/auth/login` - Inicio de sesión
-- `POST /api/auth/logout` - Cierre de sesión
-- `POST /api/auth/refresh` - Renovar token de acceso
-- `POST /api/auth/forgot-password` - Solicitar recuperación de contraseña
-- `POST /api/auth/reset-password` - Restablecer contraseña
-- `GET /api/auth/me` - Obtener usuario actual
-
-### Usuarios
-- `GET /api/users` - Listar usuarios
-- `GET /api/users/:id` - Obtener usuario por ID
-- `PUT /api/users/:id` - Actualizar usuario
-- `DELETE /api/users/:id` - Eliminar usuario
-
-### Cursos
-- `GET /api/courses` - Listar cursos
-- `POST /api/courses` - Crear curso
-- `GET /api/courses/:id` - Obtener curso
-- `PUT /api/courses/:id` - Actualizar curso
-- `DELETE /api/courses/:id` - Eliminar curso
-
-### Tareas
-- `GET /api/tasks` - Listar tareas
-- `POST /api/tasks` - Crear tarea
-- `GET /api/tasks/:id` - Obtener tarea
-- `PUT /api/tasks/:id` - Actualizar tarea
-- `DELETE /api/tasks/:id` - Eliminar tarea
-
-### Grupos
-- `GET /api/groups` - Listar grupos
-- `POST /api/groups` - Crear grupo
-- `GET /api/groups/:id` - Obtener grupo
-- `PUT /api/groups/:id` - Actualizar grupo
-- `DELETE /api/groups/:id` - Eliminar grupo
-
-## 🧪 Testing
-
-### Ejecutar Tests del Frontend
-```bash
-npm run test           # Modo watch
-npm run test:run       # Ejecución única
-npm run test:coverage  # Con reporte de cobertura
-```
-
-### Ejecutar Tests del Backend
+### Iniciar Backend
 ```bash
 cd backend
-npm test
+npm run dev
 ```
 
-### Cobertura de Tests
-- Servicios: studentService, teacherService, reportService
-- Componentes: Card, Table, Pagination
-- Validación de formularios con Zod
-- Meta: ≥80% de cobertura
-
-## 🚀 Despliegue
-
-### Frontend (Vercel/Netlify)
-1. Compilar la aplicación:
+### Iniciar Frontend
 ```bash
-npm run build
+npm run dev
 ```
-
-2. Desplegar la carpeta `dist/`
-
-### Backend (Railway/Heroku/AWS)
-1. Configurar variables de entorno en la plataforma
-2. Compilar TypeScript:
-```bash
-cd backend
-npm run build
-```
-
-3. Iniciar servidor:
-```bash
-npm start
-```
-
-### Base de Datos (Supabase/Neon/Railway)
-1. Configurar DATABASE_URL en variables de entorno
-2. Ejecutar migraciones:
-```bash
-npm run db:push
-```
-
-## 🤝 Contribución
-
-1. Fork del repositorio
-2. Crear rama para feature (`git checkout -b feature/nueva-feature`)
-3. Commit cambios (`git commit -m 'Agregar nueva feature'`)
-4. Push a la rama (`git push origin feature/nueva-feature`)
-5. Abrir Pull Request
-
-### Convenciones de Commits
-- `feat:` - Nueva funcionalidad
-- `fix:` - Corrección de bug
-- `docs:` - Documentación
-- `style:` - Formato/código
-- `refactor:` - Refactorización
-- `test:` - Tests
-- `chore:` - Mantenimiento
 
 ## 📄 Licencia
 
@@ -383,16 +179,4 @@ Este proyecto está bajo la Licencia ISC.
 
 ## 👥 Autores
 
-- **Julian Andrés Parada y Bairon Ardila Mendoza** - Desarrollador Full Stack
-
-## 📞 Contacto
-
-- GitHub: [@paradaandres0-blip](https://github.com/paradaandres0-blip)
-- Email: paradaandres0@gmail.com
-
-## 🙏 Agradecimientos
-
-- React Community
-- Vite Team
-- TailwindCSS Team
-- Prisma Team
+- **Andrés Parada** - Desarrollador Full Stack
