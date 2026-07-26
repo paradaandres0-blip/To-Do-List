@@ -383,7 +383,7 @@ Este proyecto está bajo la Licencia ISC.
 
 ## 👥 Autores
 
-- **Andrés Parada** - Desarrollador Full Stack
+- **Julian Andrés Parada y Bairon Ardila Mendoza** - Desarrollador Full Stack
 
 ## 📞 Contacto
 
