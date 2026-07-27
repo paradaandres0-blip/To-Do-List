@@ -6,6 +6,7 @@ import type {
 } from '../types/teacher.types';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import { teacherSchema } from '../schemas/teacher.schema';
+import { addMockAccount, getPasswordForAccount } from './mockDb';
 
 // ── Helper: extraer data de ApiResponse ──
 const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
@@ -106,8 +107,9 @@ export const createTeacherRequest = async (
     if (emailTaken) throw new Error('Ya existe un docente con ese correo');
 
     const stamp = nowIso();
+    const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 11);
     const created: Teacher = {
-      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 11),
+      id,
       name: payload.name.trim(),
       email: payload.email.trim().toLowerCase(),
       phone: payload.phone.trim(),
@@ -118,6 +120,10 @@ export const createTeacherRequest = async (
       updatedAt: stamp,
     };
     MOCK_TEACHERS = [created, ...MOCK_TEACHERS];
+
+    // Crear también cuenta de login para el docente
+    addMockAccount(created.email, created.name, 'instructor', id);
+
     return created;
   }
   const response = await api.post<ApiResponse<Teacher>>('/teachers', payload);

@@ -1,5 +1,6 @@
 import api from './api';
 import { STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
+import { findMockAccount } from './mockDb';
 
 // ── Tipos ──
 export interface LoginPayload {
@@ -29,48 +30,6 @@ export interface RefreshResponse {
   token: string;
 }
 
-// ── Usuarios mock (admin + docentes) — listos para reemplazar por Auth + PG ──
-const MOCK_ADMIN: AuthUser = {
-  id:    '1',
-  name:  'Julián Parada',
-  email: 'admin@workflow.com',
-  role:  'admin',
-};
-
-/** Credenciales demo docente → mismo email que en teacherService */
-const MOCK_TEACHER_ACCOUNTS: Array<{
-  email: string;
-  password: string;
-  user: AuthUser;
-}> = [
-  {
-    email: 'ana.gomez@workflow.academy',
-    password: 'docente123',
-    user: {
-      id: 'u-t1',
-      name: 'Ana Gómez',
-      email: 'ana.gomez@workflow.academy',
-      role: 'instructor',
-      teacherId: 't1',
-      phone: '+57 300 555 0101',
-      city: 'Bogotá',
-    },
-  },
-  {
-    email: 'carlos.ruiz@workflow.academy',
-    password: 'docente123',
-    user: {
-      id: 'u-t2',
-      name: 'Carlos Ruiz',
-      email: 'carlos.ruiz@workflow.academy',
-      role: 'instructor',
-      teacherId: 't2',
-      phone: '+57 310 555 0202',
-      city: 'Medellín',
-    },
-  },
-];
-
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
 const readPersistedUser = (): AuthUser | null => {
@@ -90,40 +49,29 @@ const readPersistedUser = (): AuthUser | null => {
 export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse> => {
   // ── Modo mock: simula respuesta del backend ──
   if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium)); // simula latencia
+    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
     const email = payload.email.trim().toLowerCase();
     const password = payload.password;
 
-    // Login docente (credenciales específicas)
-    const teacherAccount = MOCK_TEACHER_ACCOUNTS.find(
-      (a) => a.email.toLowerCase() === email && a.password === password,
-    );
-    if (teacherAccount) {
-      return {
-        token: 'mock-jwt-instructor-' + Date.now(),
-        user: { ...teacherAccount.user },
-        refreshToken: 'mock-refresh-instructor-' + Date.now(),
-      };
+    const account = findMockAccount(email);
+
+    if (!account) {
+      throw { response: { data: { message: 'Credenciales inválidas.' } } };
     }
 
-    // Login admin (cualquier pass ≥ 6 con email admin, o admin@ + pass)
-    if (
-      email === MOCK_ADMIN.email &&
-      password.length >= 6
-    ) {
-      return {
-        token: 'mock-jwt-admin-' + Date.now(),
-        user: { ...MOCK_ADMIN },
-        refreshToken: 'mock-refresh-admin-' + Date.now(),
-      };
+    if (account.password !== password) {
+      throw { response: { data: { message: 'Contraseña incorrecta.' } } };
     }
 
-    // Fallback: si email parece docente pero pass incorrecta
-    if (MOCK_TEACHER_ACCOUNTS.some((a) => a.email.toLowerCase() === email)) {
-      throw { response: { data: { message: 'Contraseña incorrecta para el docente.' } } };
-    }
+    const rolePrefix = account.user.role === 'admin' ? 'admin'
+      : account.user.role === 'instructor' ? 'instructor'
+      : 'student';
 
-    throw { response: { data: { message: 'Credenciales inválidas.' } } };
+    return {
+      token: `mock-jwt-${rolePrefix}-${Date.now()}`,
+      user: { ...account.user },
+      refreshToken: `mock-refresh-${rolePrefix}-${Date.now()}`,
+    };
   }
 
   // ── Modo real: llama al backend ──
@@ -150,7 +98,8 @@ export const getMeRequest = async (): Promise<AuthUser> => {
   if (IS_MOCK) {
     const persisted = readPersistedUser();
     if (persisted) return persisted;
-    return { ...MOCK_ADMIN };
+    const admin = findMockAccount('admin@workflow.academy');
+    return { ...admin!.user };
   }
   const { data } = await api.get<AuthUser>('/auth/me');
   return data;
@@ -175,7 +124,7 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
 export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    const base = readPersistedUser() ?? MOCK_ADMIN;
+    const base = readPersistedUser() ?? findMockAccount('admin@workflow.academy')!.user;
     return { ...base, ...payload };
   }
 
@@ -194,7 +143,6 @@ export interface ChangePasswordPayload {
 export const changePasswordRequest = async (payload: ChangePasswordPayload): Promise<void> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    // Simula que la contraseña actual incorrecta devuelve error
     if (payload.currentPassword.length < 6) {
       throw { response: { data: { message: 'Contraseña actual incorrecta.' } } };
     }
@@ -254,7 +202,7 @@ export interface NotificationPrefs {
 export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promise<void> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.short));
-    return; // en mock no hay backend, pero sí persistimos en localStorage
+    return;
   }
   await api.patch('/users/me/notifications', prefs);
 };
@@ -269,9 +217,6 @@ export interface AvatarValidationError {
   message: string;
 }
 
-/**
- * Valida un archivo de avatar contra tamaño y tipo permitidos.
- */
 export const validateAvatarFile = (file: File): AvatarValidationError | null => {
   if (file.size > AVATAR_MAX_SIZE) {
     return {
@@ -292,18 +237,15 @@ export const validateAvatarFile = (file: File): AvatarValidationError | null => 
 // POST /users/me/avatar  — subir avatar de usuario
 // ────────────────────────────────────────────
 export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: string }> => {
-  // Validar archivo antes de procesar
   const validationError = validateAvatarFile(file);
   if (validationError) {
     throw new Error(validationError.message);
   }
 
   if (IS_MOCK) {
-    // Comprimir antes de convertir a data URL para mock
     const { getCompressedFile } = await import('../utils/imageCompression');
     const compressed = await getCompressedFile(file);
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
-    // Convertir a data URL local (comprimido)
     const url = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -312,7 +254,6 @@ export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: stri
     return { avatarUrl: url };
   }
 
-  // Modo real: comprimir antes de enviar
   const { getCompressedFile } = await import('../utils/imageCompression');
   const compressed = await getCompressedFile(file, { maxSizeBytes: AVATAR_MAX_SIZE });
   const formData = new FormData();

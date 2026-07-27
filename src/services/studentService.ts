@@ -2,6 +2,7 @@ import api from './api';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import type { Student } from '../types/student.types';
 import { studentSchema } from '../schemas/student.schema';
+import { addMockAccount, getPasswordForAccount } from './mockDb';
 
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 type StudentPayload = Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt'>;
@@ -85,8 +86,13 @@ export const getStudentByIdRequest = async (id: string): Promise<Student> => {
 
 export const createStudentRequest = async (payload: StudentPayload): Promise<Student> => {
   if (IS_MOCK) {
-    const created: Student = { ...payload, id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2), sessions: 0, progress: 0, joinedAt: new Date().toISOString().split('T')[0] };
+    const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+    const created: Student = { ...payload, id, sessions: 0, progress: 0, joinedAt: new Date().toISOString().split('T')[0] };
     MOCK_STUDENTS = [created, ...MOCK_STUDENTS];
+
+    // Crear también cuenta de login para el estudiante
+    addMockAccount(created.email, created.name, 'student');
+
     return clone(created);
   }
   const response = await api.post<ApiResponse<Student>>('/students', payload);

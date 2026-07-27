@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { AuthLayout }      from '../layouts/AuthLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TeacherLayout }   from '../layouts/TeacherLayout';
+import { StudentLayout }   from '../layouts/StudentLayout';
 import { PrivateRoute }    from './PrivateRoute';
 import { RoleGate }        from './RoleGate';
 
@@ -27,6 +28,9 @@ import { Groups }        from '../pages/groups/Groups';
 // Portal docente
 import { TeacherBoard }      from '../pages/teachers/TeacherBoard';
 import { MyTeacherProfile }  from '../pages/teachers/MyTeacherProfile';
+
+// Portal estudiante
+import { StudentBoard } from '../pages/students/StudentBoard';
 
 const router = createBrowserRouter([
   { path: '/login', element: <Navigate to="/auth/login" replace /> },
@@ -79,6 +83,21 @@ const router = createBrowserRouter([
             children: [
               { path: '',       element: <TeacherBoard /> },
               { path: 'perfil', element: <MyTeacherProfile /> },
+            ],
+          },
+        ],
+      },
+
+      // ── Estudiante ──
+      {
+        element: <RoleGate allow={['student']} />,
+        children: [
+          {
+            path: '/estudiante',
+            element: <StudentLayout />,
+            children: [
+              { path: '',       element: <StudentBoard /> },
+              { path: 'perfil', element: <Profile /> },
             ],
           },
         ],

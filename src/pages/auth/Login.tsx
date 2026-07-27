@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Dumbbell, Apple, Brain, Flame } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { loginSchema, type LoginFormValues } from '../../schemas/auth.schema';
+import { getMockAccounts } from '../../services/mockDb';
 
 const FLOATING_ICONS = [
   { icon: Dumbbell, top: '5%',    left: '5%',   size: 42, rotate: '-20deg', color: '#a78bfa', opacity: 0.35 },
@@ -214,15 +215,15 @@ export const Login = () => {
         </p>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-semibold">Admin:</span>{' '}
-          admin@workflow.com · (pass ≥ 6 chars)
+          admin@workflow.academy · 123456
         </p>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-semibold">Docente:</span>{' '}
-          ana.gomez@workflow.academy · docente123
+          docente@workflow.academy · docente123
         </p>
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          <span className="text-slate-300 font-semibold">Docente:</span>{' '}
-          carlos.ruiz@workflow.academy · docente123
+          <span className="text-slate-300 font-semibold">Estudiante:</span>{' '}
+          estudiante@workflow.academy · estudiante123
         </p>
       </div>
 

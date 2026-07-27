@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
 import { Pagination } from '../../components/common/Pagination/Pagination';
+import { addMockAccount, getPasswordForAccount } from '../../services/mockDb';
 
 type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
 
@@ -77,6 +78,9 @@ export const Students = () => {
   const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
   const [assignModal,  setAssignModal]  = useState<Student | null>(null);
   const [currentPage,  setCurrentPage]  = useState(1);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [passwordModal, setPasswordModal] = useState(false);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
@@ -132,7 +136,16 @@ export const Students = () => {
     if (editing) {
       setStudents((p) => p.map((s) => s.id === editing.id ? { ...s, ...data } : s));
     } else {
-      setStudents((p) => [{ id: Date.now().toString(), ...data, sessions:0, progress:0, joinedAt: new Date().toISOString().split('T')[0] }, ...p]);
+      const id = Date.now().toString();
+      setStudents((p) => [{ id, ...data, sessions:0, progress:0, joinedAt: new Date().toISOString().split('T')[0] }, ...p]);
+      // Crear cuenta de login
+      addMockAccount(data.email, data.name, 'student');
+      const pwd = getPasswordForAccount(data.email);
+      if (pwd) {
+        setCreatedEmail(data.email);
+        setCreatedPassword(pwd);
+        setPasswordModal(true);
+      }
     }
     setModalOpen(false); reset();
   };
@@ -481,6 +494,34 @@ export const Students = () => {
             <button onClick={() => { if (deleteId) setStudents((p) => p.filter((s) => s.id !== deleteId)); setDeleteId(null); }}
               className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
               style={{ background:'linear-gradient(135deg,#ef4444,#dc2626)' }}>Eliminar</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal mostrar contraseña generada */}
+      <Modal isOpen={passwordModal} onClose={() => setPasswordModal(false)} title="Alumno registrado exitosamente">
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+            <p className="text-sm font-semibold text-emerald-800 mb-2">✅ Credenciales de acceso</p>
+            <div className="space-y-1 text-sm">
+              <p style={{ color: '#065f46' }}>
+                <span className="font-semibold">Correo:</span> {createdEmail}
+              </p>
+              <p style={{ color: '#065f46' }}>
+                <span className="font-semibold">Contraseña:</span>{' '}
+                <span className="font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">{createdPassword}</span>
+              </p>
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: '#94a3b8' }}>
+            El estudiante puede iniciar sesión en el login con estas credenciales.
+          </p>
+          <div className="flex justify-end">
+            <button onClick={() => setPasswordModal(false)}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
+              style={{ background:'linear-gradient(135deg,#059669,#10b981)' }}>
+              Entendido
+            </button>
           </div>
         </div>
       </Modal>

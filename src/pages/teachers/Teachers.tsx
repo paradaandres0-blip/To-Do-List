@@ -20,6 +20,7 @@ import {
 } from '../../services/teacherService';
 import { teacherSchema } from '../../schemas/teacher.schema';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { getPasswordForAccount } from '../../services/mockDb';
 
 const STATUS_STYLE: Record<TeacherStatus, string> = {
   Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -38,6 +39,9 @@ export const Teachers = () => {
   const [filterStatus, setFilterStatus] = useState<TeacherStatus | 'Todos'>('Todos');
   const [formError, setFormError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
+  const [passwordModal, setPasswordModal] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Teacher | null>(null);
@@ -167,6 +171,13 @@ export const Teachers = () => {
       } else {
         const created = await createTeacherRequest(payload);
         setTeachers((prev) => [created, ...prev]);
+        // Mostrar contraseña generada
+        const pwd = getPasswordForAccount(created.email);
+        if (pwd) {
+          setCreatedEmail(created.email);
+          setCreatedPassword(pwd);
+          setPasswordModal(true);
+        }
       }
       closeModal();
     } catch (err) {
@@ -526,6 +537,32 @@ export const Teachers = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal mostrar contraseña generada */}
+      <Modal isOpen={passwordModal} onClose={() => setPasswordModal(false)} title="Docente creado exitosamente">
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+            <p className="text-sm font-semibold text-emerald-800 mb-2">✅ Credenciales de acceso</p>
+            <div className="space-y-1 text-sm">
+              <p style={{ color: '#065f46' }}>
+                <span className="font-semibold">Correo:</span> {createdEmail}
+              </p>
+              <p style={{ color: '#065f46' }}>
+                <span className="font-semibold">Contraseña:</span>{' '}
+                <span className="font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">{createdPassword}</span>
+              </p>
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: '#94a3b8' }}>
+            El docente puede iniciar sesión en el login con estas credenciales.
+          </p>
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => setPasswordModal(false)}>
+              Entendido
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Confirmar desactivación */}

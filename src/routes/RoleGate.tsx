@@ -11,6 +11,7 @@ interface RoleGateProps {
 const homeForRole = (role: Role) => {
   if (role === 'instructor') return '/docente';
   if (role === 'admin') return '/dashboard';
+  if (role === 'student') return '/dashboard';
   return '/auth/login';
 };
 
