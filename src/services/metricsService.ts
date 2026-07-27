@@ -1,9 +1,10 @@
 import api from './api';
 import type { DashboardMetrics } from '../types/metrics.types';
+import { getMockAccounts } from './mockDb';
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 
-// ── Datos mock de alumnos (mismos que Students.tsx) ──
+// ── Datos mock de alumnos (mismos que studentStore.ts) ──
 const MOCK_STUDENTS = [
   { status:'Activo',     sessions:48 },
   { status:'Activo',     sessions:41 },
@@ -13,13 +14,19 @@ const MOCK_STUDENTS = [
   { status:'Activo',     sessions:29 },
   { status:'Suspendido', sessions:5  },
   { status:'Activo',     sessions:44 },
+  { status:'Activo',     sessions:18 },
+  { status:'Activo',     sessions:29 },
+  { status:'Suspendido', sessions:5  },
+  { status:'Activo',     sessions:44 },
+  { status:'Activo',     sessions:18 },
+  { status:'Activo',     sessions:8  },
 ];
 
 const MOCK_PROGRAMS = 6;  // total programas activos
 const MOCK_PREV = {       // datos del período anterior para calcular trend
-  students:  6,
+  students:  10,
   programs:  5,
-  sessions:  10200,
+  sessions:  300,
   satisfaction: 96,
 };
 

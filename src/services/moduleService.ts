@@ -23,10 +23,10 @@ let MOCK_MODULES: Module[] = [
     id: '2', course: 'Entrenamiento Funcional Completo', title: 'Hipertrofia y Fuerza',
     lessons: 10, duration: '5h 20m', status: 'Publicado', progress: 78,
   },
-  {
-    id: '3', course: 'Nutrición Deportiva Avanzada', title: 'Macronutrientes Esenciales',
-    lessons: 7, duration: '3h 45m', status: 'Publicado', progress: 55,
-  },
+    {
+      id: '3', course: 'Nutrición Deportiva Avanzada', title: 'Macronutrientes Esenciales',
+      lessons: 7, duration: '3h 45m', status: 'Borrador', progress: 20,
+    },
   {
     id: '4', course: 'Nutrición Deportiva Avanzada', title: 'Planes de Alimentación',
     lessons: 6, duration: '3h 10m', status: 'Borrador', progress: 20,

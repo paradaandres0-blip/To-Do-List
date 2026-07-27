@@ -274,7 +274,7 @@ export const Dashboard = () => {
               <span className="text-xs font-bold text-slate-900">Admin</span>
             </div>
             <p className="text-xs text-slate-600">Email: admin@workflow.academy</p>
-            <p className="text-xs text-slate-600">Pass: Admin123!</p>
+            <p className="text-xs text-slate-600">Pass: 123456</p>
           </div>
           <div className="bg-white rounded-xl p-3 border border-yellow-200">
             <div className="flex items-center gap-2 mb-2">
@@ -284,7 +284,7 @@ export const Dashboard = () => {
               <span className="text-xs font-bold text-slate-900">Docente</span>
             </div>
             <p className="text-xs text-slate-600">Email: docente@workflow.academy</p>
-            <p className="text-xs text-slate-600">Pass: Docente123!</p>
+            <p className="text-xs text-slate-600">Pass: docente123</p>
           </div>
           <div className="bg-white rounded-xl p-3 border border-green-200">
             <div className="flex items-center gap-2 mb-2">
@@ -294,7 +294,7 @@ export const Dashboard = () => {
               <span className="text-xs font-bold text-slate-900">Estudiante</span>
             </div>
             <p className="text-xs text-slate-600">Email: estudiante@workflow.academy</p>
-            <p className="text-xs text-slate-600">Pass: Estudiante123!</p>
+            <p className="text-xs text-slate-600">Pass: estudiante123</p>
           </div>
         </div>
       </motion.div>
