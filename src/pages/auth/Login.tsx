@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Dumbbell, Apple, Brain, Flame } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { loginSchema, type LoginFormValues } from '../../schemas/auth.schema';
-import { getMockAccounts } from '../../services/mockDb';
 
 const FLOATING_ICONS = [
   { icon: Dumbbell, top: '5%',    left: '5%',   size: 42, rotate: '-20deg', color: '#a78bfa', opacity: 0.35 },
@@ -91,7 +90,7 @@ export const Login = () => {
             <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-600">
               <Mail size={15} />
             </span>
-            <input id="email" type="email" autoComplete="email" placeholder="admin@workflow.com"
+            <input id="email" type="email" autoComplete="email" placeholder="admin@workflow.academy"
               className={`input-dark w-full rounded-xl pl-9 pr-4 py-2.5 text-sm ${errors.email ? 'error' : ''}`}
               {...register('email', {
                 required: 'El correo es obligatorio',

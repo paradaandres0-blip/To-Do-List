@@ -3,17 +3,21 @@ import {
   deleteStudentRequest, getStudentsRequest, updateStudentRequest,
 } from '../services/studentService';
 import type { Student } from '../types/student.types';
+import { getStudentsForTeacher, getStudentsForCourse, getStudentsByGroup } from '../services/sharedMockDb';
 
 interface StudentState {
   students: Student[];
   loadStudents: () => Promise<void>;
   getTopBySessions: (limit?: number) => Student[];
   getByTeacherId: (teacherId: string) => Student[];
+  getByCourseId: (courseId: string) => Student[];
+  getByGroup: (groupName: string) => Student[];
   updateStudentProgress: (id: string, progress: number) => Promise<void>;
+  updateStudent: (id: string, payload: Partial<Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt'>>) => Promise<Student>;
   getPendingRequests: () => Student[];
   acceptRequest: (id: string) => Promise<void>;
   rejectRequest: (id: string) => Promise<void>;
-  assignToGroup: (id: string, program: string, group: string, teacherId?: string) => Promise<void>;
+  assignToGroup: (id: string, group: string) => Promise<void>;
 }
 
 const useStudentStore = create<StudentState>((set, get) => ({
@@ -22,11 +26,21 @@ const useStudentStore = create<StudentState>((set, get) => ({
     const response = await getStudentsRequest();
     set({ students: response.data });
   },
-  getTopBySessions: (limit = 4) => [...get().students].filter((student) => student.status === 'Activo' && student.sessions > 0).sort((a, b) => b.sessions - a.sessions).slice(0, limit),
-  getByTeacherId: (teacherId) => get().students.filter((student) => student.teacherId === teacherId),
+  getTopBySessions: (limit = 4) => [...get().students]
+    .filter((student) => student.status === 'Activo' && student.sessions > 0)
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, limit),
+  getByTeacherId: (teacherId) => getStudentsForTeacher(teacherId),
+  getByCourseId: (courseId) => getStudentsForCourse(courseId),
+  getByGroup: (groupName) => getStudentsByGroup(groupName),
   updateStudentProgress: async (id, progress) => {
     const updated = await updateStudentRequest(id, { progress: Math.max(0, Math.min(100, progress)) });
     set((state) => ({ students: state.students.map((student) => student.id === id ? updated : student) }));
+  },
+  updateStudent: async (id, payload) => {
+    const updated = await updateStudentRequest(id, payload);
+    set((state) => ({ students: state.students.map((student) => student.id === id ? updated : student) }));
+    return updated;
   },
   getPendingRequests: () => get().students.filter((student) => student.status === 'Pendiente'),
   acceptRequest: async (id) => {
@@ -37,8 +51,8 @@ const useStudentStore = create<StudentState>((set, get) => ({
     await deleteStudentRequest(id);
     set((state) => ({ students: state.students.filter((student) => student.id !== id) }));
   },
-  assignToGroup: async (id, program, group, teacherId) => {
-    const updated = await updateStudentRequest(id, { program, group, teacherId });
+  assignToGroup: async (id, group) => {
+    const updated = await updateStudentRequest(id, { group });
     set((state) => ({ students: state.students.map((student) => student.id === id ? updated : student) }));
   },
 }));

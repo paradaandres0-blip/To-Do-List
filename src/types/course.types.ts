@@ -1,9 +1,9 @@
 export interface Course {
-  id:           string;
-  title:        string;
-  description:  string;
-  group:        string;
+  id: string;
+  title: string;
+  description: string;
+  groups: string[];
   modulesCount: number;
-  status:       'Publicado' | 'Borrador';
-  lastUpdate:   string;
+  status: 'Activo' | 'Inactivo';
+  lastUpdate: string;
 }

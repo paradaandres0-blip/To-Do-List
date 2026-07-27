@@ -4,8 +4,8 @@ export interface Student {
   email:     string;
   phone?:    string;
   program:   string;
-  group:     string;
-  status:    'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
+  group:     string;  centerId?: string;  status:    'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
+  active:    boolean;
   sessions:  number;
   progress:  number; // 0-100
   joinedAt:  string;

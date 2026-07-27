@@ -36,13 +36,13 @@ describe('authStore', () => {
     
     await act(async () => {
       await result.current.login({
-        email: 'admin@workflow.com',
-        password: 'admin123',
+        email: 'admin@workflow.academy',
+        password: '123456',
       });
     });
 
     expect(result.current.user).toBeDefined();
-    expect(result.current.user?.email).toBe('admin@workflow.com');
+    expect(result.current.user?.email).toBe('admin@workflow.academy');
     expect(result.current.token).toBeDefined();
   });
 
@@ -52,8 +52,8 @@ describe('authStore', () => {
     // First login
     await act(async () => {
       await result.current.login({
-        email: 'admin@workflow.com',
-        password: 'admin123',
+        email: 'admin@workflow.academy',
+        password: '123456',
       });
     });
 

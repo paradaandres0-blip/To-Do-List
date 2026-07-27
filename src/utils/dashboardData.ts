@@ -11,34 +11,28 @@ const MONTH_LONG = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-/** Pseudoaleatorio estable por seed (evita valores fijos de un año estático). */
-function seeded(seed: number): number {
-  const x = Math.sin(seed * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-}
+export function buildMonthlySessionsChart(sessions: { date: string }[] = [], count = 7): MonthlyBar[] {
+  const latestTimestamp = sessions.reduce((max, session) => {
+    const timestamp = new Date(session.date).getTime();
+    return timestamp > max ? timestamp : max;
+  }, 0);
+  const referenceDate = latestTimestamp ? new Date(latestTimestamp) : new Date();
 
-/**
- * Últimos N meses a partir de hoy (labels y año dinámicos).
- * Los valores son fake pero se recalculan según el mes actual.
- */
-export function buildMonthlySessionsChart(count = 7): MonthlyBar[] {
-  const now = new Date();
-  const bars: MonthlyBar[] = [];
-
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const seed = d.getFullYear() * 100 + d.getMonth();
-    // Tendencia suave al alza hacia el mes actual + variación
-    const trend = ((count - 1 - i) / Math.max(count - 1, 1)) * 50;
-    const val = Math.round(45 + trend + seeded(seed) * 70);
-
-    bars.push({
+  const bars: MonthlyBar[] = Array.from({ length: count }, (_, index) => {
+    const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - (count - 1 - index), 1);
+    return {
       label: MONTH_SHORT[d.getMonth()],
-      val,
+      val: 0,
       year: d.getFullYear(),
       monthIndex: d.getMonth(),
-    });
-  }
+    };
+  });
+
+  sessions.forEach((session) => {
+    const sessionDate = new Date(session.date);
+    const bar = bars.find((b) => b.year === sessionDate.getFullYear() && b.monthIndex === sessionDate.getMonth());
+    if (bar) bar.val += 1;
+  });
 
   return bars;
 }

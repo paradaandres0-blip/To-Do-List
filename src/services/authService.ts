@@ -79,6 +79,15 @@ export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse
   return data;
 };
 
+export const verifyPasswordRequest = async (email: string, password: string): Promise<boolean> => {
+  try {
+    await loginRequest({ email, password });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // ────────────────────────────────────────────
 // POST /auth/logout
 // ────────────────────────────────────────────

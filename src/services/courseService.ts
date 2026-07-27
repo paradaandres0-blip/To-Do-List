@@ -12,37 +12,57 @@ const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
 };
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
+const STORAGE_KEY = 'workflowacademy-courses';
+
+const loadCoursesFromStorage = (): Course[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const persistCourses = (courses: Course[]) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(courses));
+};
 
 // ── Datos mock iniciales ──
-let MOCK_COURSES: Course[] = [
+let MOCK_COURSES: Course[] = loadCoursesFromStorage().length > 0 ? loadCoursesFromStorage() : [
   {
     id: '1',
     title: 'Entrenamiento Funcional Completo',
     description: 'Programa de 12 semanas para desarrollar fuerza, resistencia y movilidad con ejercicios funcionales.',
-    group: 'Cohorte Fitness 2026',
-    modulesCount: 8,
-    status: 'Publicado',
+    groups: ['Cohorte Fitness 2026'],
+    modulesCount: 2,
+    status: 'Activo',
     lastUpdate: 'Hace 2 días',
   },
   {
     id: '2',
     title: 'Nutrición Deportiva Avanzada',
     description: 'Diseño de planes de alimentación para optimizar el rendimiento físico y la recuperación muscular.',
-    group: 'Programa Nutrición Pro',
-    modulesCount: 5,
-    status: 'Borrador',
+    groups: ['Programa Nutrición Pro'],
+    modulesCount: 2,
+    status: 'Inactivo',
     lastUpdate: 'Hace 5 horas',
   },
   {
     id: '3',
     title: 'Mindfulness y Bienestar Mental',
     description: 'Técnicas de meditación, respiración consciente y gestión del estrés para equilibrio emocional.',
-    group: 'Cohorte Bienestar 2026',
-    modulesCount: 6,
-    status: 'Publicado',
+    groups: ['Bienestar Mental'],
+    modulesCount: 2,
+    status: 'Activo',
     lastUpdate: 'Hace 1 semana',
   },
 ];
+
+if (IS_MOCK && loadCoursesFromStorage().length === 0) {
+  persistCourses(MOCK_COURSES);
+}
 
 // ── GET /courses ──
 export const getCoursesRequest = async (): Promise<Course[]> => {
@@ -65,6 +85,7 @@ export const createCourseRequest = async (payload: Omit<Course, 'id' | 'modulesC
       lastUpdate: 'Justo ahora',
     };
     MOCK_COURSES = [newCourse, ...MOCK_COURSES];
+    persistCourses(MOCK_COURSES);
     return newCourse;
   }
   const response = await api.post<ApiResponse<Course>>('/courses', payload);
@@ -83,6 +104,7 @@ export const updateCourseRequest = async (id: string, payload: Partial<Omit<Cour
       lastUpdate: 'Justo ahora',
     };
     MOCK_COURSES[index] = updated;
+    persistCourses(MOCK_COURSES);
     return updated;
   }
   const response = await api.put<ApiResponse<Course>>(`/courses/${id}`, payload);
@@ -94,6 +116,7 @@ export const deleteCourseRequest = async (id: string): Promise<void> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, 300));
     MOCK_COURSES = MOCK_COURSES.filter((c) => c.id !== id);
+    persistCourses(MOCK_COURSES);
     return;
   }
   await api.delete(`/courses/${id}`);

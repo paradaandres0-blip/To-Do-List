@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Layers, Plus, Search, ChevronRight, BookOpen, Clock, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
@@ -13,14 +13,13 @@ import {
   deleteModuleRequest
 } from '../../services/moduleService';
 import { getCoursesRequest } from '../../services/courseService';
+import useActivityStore from '../../store/activityStore';
 
 interface ModuleFormInputs {
   course: string;
   title: string;
-  lessons: number;
   duration: string;
-  status: 'Publicado' | 'Borrador';
-  progress: number;
+  status: 'Activo' | 'Inactivo';
 }
 
 export const Modules = () => {
@@ -32,14 +31,15 @@ export const Modules = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
 
+  const activities = useActivityStore((s) => s.activities);
+  const loadActivities = useActivityStore((s) => s.loadActivities);
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ModuleFormInputs>({
     defaultValues: {
       course: '',
       title: '',
-      lessons: 0,
       duration: '',
-      status: 'Borrador',
-      progress: 0
+      status: 'Inactivo',
     }
   });
 
@@ -49,7 +49,8 @@ export const Modules = () => {
       try {
         const [modulesData, coursesData] = await Promise.all([
           getModulesRequest(),
-          getCoursesRequest()
+          getCoursesRequest(),
+          loadActivities(),
         ]);
         setModules(modulesData);
         setCourses(coursesData);
@@ -60,7 +61,7 @@ export const Modules = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [loadActivities]);
 
   // Rellenar formulario cuando se edita o se abre en modo creación
   useEffect(() => {
@@ -68,22 +69,42 @@ export const Modules = () => {
       reset({
         course: editingModule.course,
         title: editingModule.title,
-        lessons: editingModule.lessons,
         duration: editingModule.duration,
         status: editingModule.status,
-        progress: editingModule.progress,
       });
     } else {
       reset({
         course: '',
         title: '',
-        lessons: 0,
         duration: '',
-        status: 'Borrador',
-        progress: 0,
+        status: 'Inactivo',
       });
     }
   }, [editingModule, reset]);
+
+  const moduleProgress = useMemo(() => {
+    const progressMap: Record<string, number> = {};
+    const moduleActivities: Record<string, number[]> = {};
+
+    activities.forEach((activity) => {
+      if (!moduleActivities[activity.moduleId]) {
+        moduleActivities[activity.moduleId] = [];
+      }
+      moduleActivities[activity.moduleId].push(activity.progress);
+    });
+
+    Object.entries(moduleActivities).forEach(([moduleId, progresses]) => {
+      if (progresses.length === 0) return;
+      const sum = progresses.reduce((acc, value) => acc + value, 0);
+      progressMap[moduleId] = Math.round(sum / progresses.length);
+    });
+
+    return progressMap;
+  }, [activities]);
+
+  const [activeModule, setActiveModule] = useState<Module | null>(null);
+  const openModule = (mod: Module) => setActiveModule(mod);
+  const closeModule = () => setActiveModule(null);
 
   const filtered = modules.filter(
     (m) =>
@@ -91,21 +112,34 @@ export const Modules = () => {
       m.course.toLowerCase().includes(search.toLowerCase())
   );
 
+  const modulesByCourse = useMemo(() => {
+    return filtered.reduce<Record<string, Module[]>>((acc, module) => {
+      if (!acc[module.course]) acc[module.course] = [];
+      acc[module.course].push(module);
+      return acc;
+    }, {});
+  }, [filtered]);
+
+  const activityCountByModule = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    activities.forEach((activity) => {
+      countMap[activity.moduleId] = (countMap[activity.moduleId] ?? 0) + 1;
+    });
+    return countMap;
+  }, [activities]);
+
   const onSubmit = async (data: ModuleFormInputs) => {
     setIsSaving(true);
     try {
       const formattedData = {
         ...data,
-        lessons: Number(data.lessons),
-        progress: Number(data.progress),
+        lessons: editingModule ? editingModule.lessons : 0,
       };
 
       if (editingModule) {
-        // Modo Edición
         const updatedModule = await updateModuleRequest(editingModule.id, formattedData);
         setModules(modules.map((m) => (m.id === editingModule.id ? updatedModule : m)));
       } else {
-        // Modo Creación
         const newModule = await createModuleRequest(formattedData);
         setModules([newModule, ...modules]);
       }
@@ -186,13 +220,22 @@ export const Modules = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filtered.map((mod) => (
-              <div
-                key={mod.id}
-                className="bg-white rounded-2xl p-5 flex flex-col gap-4 cursor-pointer group transition-all hover:shadow-md"
-                style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-              >
+          <div className="space-y-8">
+            {Object.entries(modulesByCourse).map(([courseTitle, courseModules]) => (
+              <div key={courseTitle} className="rounded-2xl bg-white p-4" style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">{courseTitle}</h2>
+                    <p className="text-sm text-slate-500">{courseModules.length} módulos</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {courseModules.map((mod) => (
+                    <div
+                      key={mod.id}
+                      className="bg-slate-50 rounded-2xl p-5 flex flex-col gap-4 cursor-pointer group transition-all hover:shadow-md"
+                      style={{ border: '1px solid #f1f5f9' }}
+                    >
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div
@@ -204,9 +247,9 @@ export const Modules = () => {
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                        mod.status === 'Publicado'
+                        mod.status === 'Activo'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {mod.status}
@@ -237,27 +280,27 @@ export const Modules = () => {
                 {/* Stats */}
                 <div className="flex items-center gap-4 text-xs" style={{ color: '#64748b' }}>
                   <span className="flex items-center gap-1">
-                    <BookOpen size={13} /> {mod.lessons} lecciones
+                    <BookOpen size={13} /> {activityCountByModule[mod.id] ?? 0} actividades
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock size={13} /> {mod.duration}
                   </span>
                 </div>
 
-                {/* Progreso */}
+                {/* Progreso calculado */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs font-medium" style={{ color: '#94a3b8' }}>Progreso</span>
-                    <span className="text-xs font-bold" style={{ color: mod.progress === 100 ? '#059669' : '#7c3aed' }}>
-                      {mod.progress}%
+                    <span className="text-xs font-bold" style={{ color: (moduleProgress[mod.id] ?? 0) === 100 ? '#059669' : '#7c3aed' }}>
+                      {moduleProgress[mod.id] ?? 0}%
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full" style={{ background: '#f1f5f9' }}>
                     <div
                       className="h-1.5 rounded-full transition-all duration-500"
                       style={{
-                        width: `${mod.progress}%`,
-                        background: mod.progress === 100
+                        width: `${moduleProgress[mod.id] ?? 0}%`,
+                        background: (moduleProgress[mod.id] ?? 0) === 100
                           ? 'linear-gradient(90deg,#059669,#10b981)'
                           : 'linear-gradient(90deg,#7c3aed,#2563eb)',
                       }}
@@ -265,18 +308,22 @@ export const Modules = () => {
                   </div>
                 </div>
 
-                {/* Acción */}
-                <button
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all group-hover:opacity-80"
-                  style={{
-                    background: 'rgba(124,58,237,0.06)',
-                    border: '1px solid rgba(124,58,237,0.15)',
-                    color: '#7c3aed',
-                  }}
-                >
-                  {mod.progress === 100 ? <CheckCircle2 size={13} /> : <ChevronRight size={13} />}
-                  {mod.progress === 100 ? 'Completado' : 'Ver módulo'}
-                </button>
+                      {/* Acción */}
+                      <button
+                        onClick={() => openModule(mod)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all group-hover:opacity-80"
+                        style={{
+                          background: 'rgba(124,58,237,0.06)',
+                          border: '1px solid rgba(124,58,237,0.15)',
+                          color: '#7c3aed',
+                        }}
+                      >
+                        {(moduleProgress[mod.id] ?? 0) === 100 ? <CheckCircle2 size={13} /> : <ChevronRight size={13} />}
+                        {(moduleProgress[mod.id] ?? 0) === 100 ? 'Completado' : 'Ver módulo'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -289,6 +336,31 @@ export const Modules = () => {
           )}
         </>
       )}
+
+      <Modal isOpen={!!activeModule} onClose={closeModule} title={activeModule ? `Módulo: ${activeModule.title}` : ''}>
+        {activeModule && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">Curso: {activeModule.course}</p>
+            <div>
+              <p className="text-sm font-semibold mb-2">Actividades</p>
+              <ul className="space-y-2">
+                {activities.filter((a) => a.moduleId === activeModule.id).map((act) => (
+                  <li key={act.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium" style={{ color: '#0f172a' }}>{act.title}</p>
+                      <p className="text-xs text-slate-500">{act.lesson} • {act.status} • {act.progress}%</p>
+                    </div>
+                    <div className="text-xs text-slate-400">{new Date(act.createdAt).toLocaleDateString('es-CO')}</div>
+                  </li>
+                ))}
+                {activities.filter((a) => a.moduleId === activeModule.id).length === 0 && (
+                  <li className="p-3 rounded-xl bg-slate-50 text-slate-500">No hay actividades</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal Crear/Editar Módulo */}
       <Modal
@@ -325,33 +397,10 @@ export const Modules = () => {
           />
 
           <Input
-            label="Número de Lecciones"
-            type="number"
-            placeholder="Ej: 8"
-            error={errors.lessons?.message}
-            {...register('lessons', {
-              required: 'El número de lecciones es obligatorio',
-              min: { value: 0, message: 'El valor mínimo es 0' }
-            })}
-          />
-
-          <Input
             label="Duración Estimada"
             placeholder="Ej: 4h 30m"
             error={errors.duration?.message}
             {...register('duration', { required: 'La duración es obligatoria' })}
-          />
-
-          <Input
-            label="Progreso (%)"
-            type="number"
-            placeholder="Ej: 50"
-            error={errors.progress?.message}
-            {...register('progress', {
-              required: 'El progreso es obligatorio',
-              min: { value: 0, message: 'El valor mínimo es 0' },
-              max: { value: 100, message: 'El valor máximo es 100' }
-            })}
           />
 
           <div className="w-full">
@@ -362,8 +411,8 @@ export const Modules = () => {
               className="block w-full rounded-lg border border-light-gray/60 bg-background text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors sm:text-sm px-3 py-2.5"
               {...register('status', { required: 'El estado es obligatorio' })}
             >
-              <option value="Borrador">Borrador</option>
-              <option value="Publicado">Publicado</option>
+              <option value="Inactivo">Inactivo</option>
+              <option value="Activo">Activo</option>
             </select>
             {errors.status && (
               <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.status.message}</p>

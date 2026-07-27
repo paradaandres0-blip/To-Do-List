@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
+import { CENTERS, getGroupsByCenter, getStudentsByCenter, addCenter, updateCenter, removeCenter, groupLimitForPlan, canAddGroupToCenter, deactivateCenter, activateCenter } from '../../services/sharedMockDb';
 
 // Genera un id único sin usar Math.random (evita impureza en render)
 const generateId = () => crypto.randomUUID();
@@ -17,48 +18,18 @@ interface Organization {
   assignedGroups: string[];
 }
 
-const INITIAL_ORGS: Organization[] = [
-  {
-    id: '1',
-    name: 'WorkFlow Academy',
-    website: 'www.workflowacademy.co',
-    groups: 5,
-    students: 240,
-    plan: 'Enterprise',
-    active: true,
-    assignedGroups: ['Cohorte Fitness 2026', 'Programa Nutrición Pro', 'Bienestar Mental Avanzado'],
-  },
-  {
-    id: '2',
-    name: 'Centro de Salud Vital',
-    website: 'www.saludvital.co',
-    groups: 3,
-    students: 120,
-    plan: 'Pro',
-    active: true,
-    assignedGroups: ['Pérdida de Peso Sostenible', 'Nutrición Funcional', 'Salud Integral'],
-  },
-  {
-    id: '3',
-    name: 'FitLife Institute',
-    website: 'www.fitlife.org',
-    groups: 2,
-    students: 68,
-    plan: 'Básico',
-    active: false,
-    assignedGroups: ['Entrenamiento Funcional', 'Yoga para Bienestar'],
-  },
-  {
-    id: '4',
-    name: 'NutriPro Academy',
-    website: 'www.nutripro.co',
-    groups: 4,
-    students: 190,
-    plan: 'Pro',
-    active: true,
-    assignedGroups: ['Nutrición Deportiva', 'Cohorte Keto', 'Plan Detox', 'Educación Alimentaria'],
-  },
-];
+// Derivar organizaciones desde sharedMockDb
+
+const mapOrgs = () => CENTERS.map((c) => ({
+  id: c.id,
+  name: c.name,
+  website: c.website,
+  groups: getGroupsByCenter(c.id).length,
+  students: getStudentsByCenter(c.id).length,
+  plan: c.plan,
+  active: c.active,
+  assignedGroups: getGroupsByCenter(c.id).map((g) => g.name),
+} as Organization));
 
 const planStyle: Record<Organization['plan'], string> = {
   Enterprise: 'bg-purple-50 text-purple-700 border-purple-200',
@@ -69,11 +40,14 @@ const planStyle: Record<Organization['plan'], string> = {
 interface OrgForm { name: string; website: string; plan: Organization['plan']; }
 
 export const Organizations = () => {
-  const [orgs, setOrgs] = useState<Organization[]>(INITIAL_ORGS);
+  const derived = useMemo(() => mapOrgs(), []);
+  const [orgs, setOrgs] = useState<Organization[]>(derived);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [detailOrg, setDetailOrg] = useState<Organization | null>(null);
+  const [actionTarget, setActionTarget] = useState<{ id: string; type: 'deactivate' | 'delete' } | null>(null);
+  const [adminPassword, setAdminPassword] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrgForm>();
 
@@ -82,56 +56,71 @@ export const Organizations = () => {
     o.website.toLowerCase().includes(search.toLowerCase())
   );
 
+  const refresh = () => setOrgs(CENTERS.map((c) => ({
+    id: c.id,
+    name: c.name,
+    website: c.website,
+    groups: getGroupsByCenter(c.id).length,
+    students: getStudentsByCenter(c.id).length,
+    plan: c.plan,
+    active: c.active,
+    assignedGroups: getGroupsByCenter(c.id).map((g) => g.name),
+  })));
+
   const onSubmit = (data: OrgForm) => {
     if (editingOrg) {
-      setOrgs((prev) => prev.map((org) => (org.id === editingOrg.id ? { ...org, ...data } : org)));
+      updateCenter(editingOrg.id, { name: data.name, website: data.website, plan: data.plan });
     } else {
-      setOrgs([
-        {
-          id: generateId(),
-          ...data,
-          groups: 0,
-          students: 0,
-          active: true,
-          assignedGroups: [],
-        },
-        ...orgs,
-      ]);
+      addCenter({ id: generateId(), name: data.name, website: data.website, plan: data.plan, active: true });
     }
+    refresh();
     setIsOpen(false);
     setEditingOrg(null);
     reset();
   };
 
-  const openEdit = (org: Organization) => {
-    setEditingOrg(org);
-    reset({ name: org.name, website: org.website, plan: org.plan });
-    setIsOpen(true);
-  };
-
-  const openDetails = (org: Organization) => {
-    setDetailOrg(org);
-  };
-
+  const openCreate = () => { setEditingOrg(null); reset({ plan: 'Básico' }); setIsOpen(true); };
+  const openEdit = (org: Organization) => { setEditingOrg(org); reset({ name: org.name, website: org.website, plan: org.plan }); setIsOpen(true); };
+  const openDetails = (org: Organization) => setDetailOrg(org);
   const toggleActive = (id: string) => {
-    setOrgs((prev) => prev.map((org) => (org.id === id ? { ...org, active: !org.active } : org)));
-    if (detailOrg?.id === id) {
-      setDetailOrg((current) => current ? { ...current, active: !current.active } : current);
+    const center = CENTERS.find((c) => c.id === id);
+    if (!center) return;
+    if (center.active) {
+      setActionTarget({ id, type: 'deactivate' });
+      return;
     }
+    activateCenter(id);
+    refresh();
+  };
+
+  const confirmAction = () => {
+    if (!actionTarget) return;
+    const center = CENTERS.find((c) => c.id === actionTarget.id);
+    if (!center) return;
+
+    if (actionTarget.type === 'deactivate') {
+      deactivateCenter(actionTarget.id);
+      refresh();
+    } else if (actionTarget.type === 'delete') {
+      if (adminPassword !== '123456') {
+        alert('La contraseña de administrador no es correcta.');
+        return;
+      }
+      removeCenter(actionTarget.id);
+      refresh();
+      if (detailOrg?.id === actionTarget.id) setDetailOrg(null);
+    }
+
+    setActionTarget(null);
+    setAdminPassword('');
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('¿Eliminar este centro?')) {
-      setOrgs((prev) => prev.filter((org) => org.id !== id));
-      if (detailOrg?.id === id) {
-        setDetailOrg(null);
-      }
-    }
+    setActionTarget({ id, type: 'delete' });
   };
 
   return (
     <div className="w-full space-y-6">
-
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -144,11 +133,7 @@ export const Organizations = () => {
           </p>
         </div>
         <button
-          onClick={() => {
-            setEditingOrg(null);
-            reset({ plan: 'Básico' });
-            setIsOpen(true);
-          }}
+          onClick={openCreate}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
         >
@@ -386,7 +371,16 @@ export const Organizations = () => {
             <div className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold text-slate-900">Grupos asignados</p>
-                <span className="text-xs text-slate-500">{detailOrg.assignedGroups.length} grupos</span>
+                <span className="text-xs text-slate-500">{detailOrg.assignedGroups.length}/{groupLimitForPlan(detailOrg.plan)} grupos</span>
+              </div>
+              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                  <p>
+                    El plan {detailOrg.plan} permite hasta {groupLimitForPlan(detailOrg.plan) === Number.MAX_SAFE_INTEGER ? 'grupos ilimitados' : `${groupLimitForPlan(detailOrg.plan)} grupos`}.
+                    {canAddGroupToCenter(detailOrg.id) ? ' Aún puedes crear más grupos.' : ' Ya alcanzaste el límite.'}
+                  </p>
+                </div>
               </div>
               <ul className="space-y-2">
                 {detailOrg.assignedGroups.length > 0 ? (
@@ -404,6 +398,28 @@ export const Organizations = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal isOpen={!!actionTarget} onClose={() => { setActionTarget(null); setAdminPassword(''); }} title={actionTarget?.type === 'delete' ? 'Confirmar eliminación' : 'Confirmar desactivación'}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            {actionTarget?.type === 'delete'
+              ? 'Esta acción eliminará el centro, todos sus grupos y las cuentas de los estudiantes asociados. Para continuar, ingresa la contraseña de administrador.'
+              : 'Al desactivar este centro se desactivarán temporalmente todos sus grupos y alumnos asociados hasta que vuelva a activarse.'}
+          </p>
+          {actionTarget?.type === 'delete' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700">Contraseña de administrador</label>
+              <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all" />
+            </div>
+          )}
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={() => { setActionTarget(null); setAdminPassword(''); }} className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all" style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
+            <button type="button" onClick={confirmAction} className={`px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all ${actionTarget?.type === 'delete' ? 'bg-red-600' : 'bg-slate-700'}`}>
+              {actionTarget?.type === 'delete' ? 'Eliminar' : 'Desactivar'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

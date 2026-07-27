@@ -116,3 +116,7 @@ export const getPasswordForAccount = (email: string): string | null => {
   const account = accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase());
   return account?.password ?? null;
 };
+
+export const removeMockAccount = (email: string): void => {
+  accounts = accounts.filter((a) => a.email.toLowerCase() !== email.trim().toLowerCase());
+};

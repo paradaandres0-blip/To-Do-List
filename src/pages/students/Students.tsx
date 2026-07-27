@@ -1,41 +1,26 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus } from 'lucide-react';
+import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
 import { Pagination } from '../../components/common/Pagination/Pagination';
-import { addMockAccount, getPasswordForAccount } from '../../services/mockDb';
+import { getPasswordForAccount } from '../../services/mockDb';
+import { CENTERS, GROUPS as SHARED_GROUPS, getCenterForGroup, getGroupByName, canAddStudentToGroup } from '../../services/sharedMockDb';
+import useStudentStore from '../../store/studentStore';
+import type { Student } from '../../types/student.types';
 
-type StudentStatus = 'Activo' | 'Inactivo' | 'Suspendido' | 'Pendiente';
+type StudentStatus = Student['status'];
 
-interface Student {
-  id: string; name: string; email: string; phone: string;
-  program: string; group: string; status: StudentStatus;
-  sessions: number; progress: number; joinedAt: string;
-}
 interface StudentForm {
   name: string; email: string; phone: string;
-  program: string; group: string; status: StudentStatus;
+  centerId: string; group: string; status: StudentStatus;
 }
 interface AssignForm {
-  program: string;
   group: string;
 }
 
-const INITIAL: Student[] = [
-  { id:'1', name:'Mariana López',  email:'mariana@mail.com', phone:'+57 300 111 2222', program:'Entrenamiento Funcional', group:'Cohorte Fitness 2026',  status:'Activo',     sessions:48, progress:82, joinedAt:'2025-01-10' },
-  { id:'2', name:'Carlos Ruiz',    email:'carlos@mail.com',  phone:'+57 310 333 4444', program:'Nutrición Deportiva',     group:'Programa Nutrición Pro', status:'Activo',     sessions:41, progress:67, joinedAt:'2025-02-14' },
-  { id:'3', name:'Laura Gómez',    email:'laura@mail.com',   phone:'+57 320 555 6666', program:'Mindfulness',             group:'Bienestar Mental',       status:'Activo',     sessions:37, progress:74, joinedAt:'2025-01-22' },
-  { id:'4', name:'Diego Torres',   email:'diego@mail.com',   phone:'+57 315 777 8888', program:'Pérdida de Peso',         group:'Cohorte Fitness 2026',   status:'Activo',     sessions:33, progress:55, joinedAt:'2025-03-05' },
-  { id:'5', name:'Sofía Martínez', email:'sofia@mail.com',   phone:'+57 311 999 0000', program:'Entrenamiento Funcional', group:'Cohorte Fitness 2026',   status:'Inactivo',   sessions:12, progress:28, joinedAt:'2025-02-28' },
-  { id:'6', name:'Andrés Peña',    email:'andres@mail.com',  phone:'+57 305 123 4567', program:'Nutrición Deportiva',     group:'Programa Nutrición Pro', status:'Activo',     sessions:29, progress:60, joinedAt:'2025-04-01' },
-  { id:'7', name:'Valentina Cruz', email:'vale@mail.com',    phone:'+57 318 234 5678', program:'Mindfulness',             group:'Bienestar Mental',       status:'Suspendido', sessions:5,  progress:10, joinedAt:'2025-03-15' },
-  { id:'8', name:'Juliana Ríos',   email:'juliana@mail.com', phone:'+57 312 345 6789', program:'Pérdida de Peso',         group:'Cohorte Fitness 2026',   status:'Activo',     sessions:44, progress:90, joinedAt:'2025-01-05' },
-];
-
-const PROGRAMS = ['Entrenamiento Funcional','Nutrición Deportiva','Mindfulness','Pérdida de Peso','Fitness Funcional'];
-const GROUPS   = ['Cohorte Fitness 2026','Programa Nutrición Pro','Bienestar Mental','Centro de Salud Vital'];
+// PROGRAMS and GROUPS will be derived inside the component so they reflect runtime changes
 const STATUSES: StudentStatus[] = ['Activo','Inactivo','Suspendido','Pendiente'];
 
 const statusStyle: Record<StudentStatus, string> = {
@@ -67,7 +52,13 @@ const PAGE_SIZE = 8;
 
 export const Students = () => {
   const navigate = useNavigate();
-  const [students,     setStudents]     = useState<Student[]>(INITIAL);
+  const students = useStudentStore((s) => s.students);
+  const loadStudents = useStudentStore((s) => s.loadStudents);
+  const getPendingRequests = useStudentStore((s) => s.getPendingRequests);
+  const acceptRequest = useStudentStore((s) => s.acceptRequest);
+  const rejectRequest = useStudentStore((s) => s.rejectRequest);
+  const assignToGroup = useStudentStore((s) => s.assignToGroup);
+
   const [search,       setSearch]       = useState('');
   const [filterStatus, setFilterStatus] = useState<StudentStatus | 'Todos'>('Todos');
   const [filterProg,   setFilterProg]   = useState('Todos');
@@ -82,19 +73,52 @@ export const Students = () => {
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [passwordModal, setPasswordModal] = useState(false);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentForm>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
   });
+  const selectedCenterId = watch('centerId');
+  const selectedGroup = watch('group');
+  const availableGroups = useMemo(() => selectedCenterId
+    ? SHARED_GROUPS.filter((g) => g.centerId === selectedCenterId && g.active)
+    : SHARED_GROUPS.filter((g) => g.active),
+  [selectedCenterId]);
+
+  const selectedCenter = useMemo(() => CENTERS.find((center) => center.id === selectedCenterId), [selectedCenterId]);
+  const assignableGroups = useMemo(() => {
+    if (!assignModal) return SHARED_GROUPS.filter((group) => group.active);
+    const centerId = SHARED_GROUPS.find((group) => group.name === assignModal.group)?.centerId;
+    return SHARED_GROUPS.filter((group) => group.active && (!centerId || group.centerId === centerId));
+  }, [assignModal]);
+
+  useEffect(() => {
+    if (selectedCenterId && selectedGroup) {
+      const stillValid = availableGroups.some((g) => g.name === selectedGroup);
+      if (!stillValid) setValue('group', '');
+    }
+  }, [availableGroups, selectedCenterId, selectedGroup, setValue]);
+
   const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>({
     resolver: zodResolver(studentAssignmentSchema),
   });
 
-  const filtered = useMemo(() => students.filter((s) => {
+  // Cargar estudiantes desde el store compartido al montar
+  useEffect(() => {
+    if (students.length === 0) {
+      loadStudents();
+    }
+  }, [loadStudents, students.length]);
+
+  // Derivar programas y grupos en cada render para reflejar cambios en sharedMockDb
+  const PROGRAMS = Array.from(new Set(SHARED_GROUPS.map((g) => g.program)));
+
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return (s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.program.toLowerCase().includes(q))
-      && (filterStatus === 'Todos' || s.status === filterStatus)
-      && (filterProg   === 'Todos' || s.program === filterProg);
-  }), [students, search, filterStatus, filterProg]);
+    return students.filter((s) => {
+      return (s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.program.toLowerCase().includes(q))
+        && (filterStatus === 'Todos' || s.status === filterStatus)
+        && (filterProg   === 'Todos' || s.program === filterProg);
+    });
+  }, [students, search, filterStatus, filterProg]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginatedItems = useMemo(() => {
@@ -111,43 +135,109 @@ export const Students = () => {
     setCurrentPage(1);
   }, [search, filterStatus, filterProg]);
 
-  const openCreate = () => { setEditing(null); reset({ name:'', email:'', phone:'', program:'', group:'', status:'Activo' }); setModalOpen(true); };
+  const pendingRequests = useMemo(() => getPendingRequests(), [getPendingRequests, students]);
+
+  const openCreate = () => { setEditing(null); reset({ name:'', email:'', phone:'', centerId:'', group:'', status:'Activo' }); setModalOpen(true); };
   const openEdit   = (s: Student) => {
     setEditing(s);
-    (['name','email','phone','program','group','status'] as const).forEach((k) => setValue(k, s[k] as never));
+    const group = getGroupByName(s.group);
+    const centerId = group?.centerId ?? '';
+    setValue('name', s.name);
+    setValue('email', s.email);
+    setValue('phone', s.phone ?? '');
+    setValue('centerId', centerId);
+    setValue('group', s.group);
+    setValue('status', s.status);
     setModalOpen(true);
   };
   const openAssign = (s: Student) => {
     setAssignModal(s);
-    resetAssign({ program: s.program, group: s.group });
+    resetAssign({ group: s.group });
   };
 
-  const onAssign = (data: AssignForm) => {
+  const onAssign = async (data: AssignForm) => {
     if (assignModal) {
-      setStudents((p) => p.map((st) => 
-        st.id === assignModal.id ? { ...st, program: data.program, group: data.group } : st
-      ));
-      setAssignModal(null);
-      resetAssign();
-    }
-  };
-
-  const onSubmit = (data: StudentForm) => {
-    if (editing) {
-      setStudents((p) => p.map((s) => s.id === editing.id ? { ...s, ...data } : s));
-    } else {
-      const id = Date.now().toString();
-      setStudents((p) => [{ id, ...data, sessions:0, progress:0, joinedAt: new Date().toISOString().split('T')[0] }, ...p]);
-      // Crear cuenta de login
-      addMockAccount(data.email, data.name, 'student');
-      const pwd = getPasswordForAccount(data.email);
-      if (pwd) {
-        setCreatedEmail(data.email);
-        setCreatedPassword(pwd);
-        setPasswordModal(true);
+      try {
+        await assignToGroup(assignModal.id, data.group);
+        setAssignModal(null);
+        resetAssign();
+      } catch (err) {
+        console.error('Error al asignar:', err);
+        alert('Error al asignar el grupo');
       }
     }
-    setModalOpen(false); reset();
+  };
+
+  const onSubmit = async (data: StudentForm) => {
+    try {
+      const { centerId, ...payload } = data;
+      const isSameGroup = editing ? editing.group === payload.group : false;
+      const selectedGroupData = SHARED_GROUPS.find((group) => group.name === payload.group);
+      const centerForGroup = selectedGroupData ? CENTERS.find((center) => center.id === selectedGroupData.centerId) : undefined;
+      if (centerForGroup && !centerForGroup.active) {
+        alert('No puedes asignar alumnos a un grupo de un centro inactivo.');
+        return;
+      }
+      if (!isSameGroup && !canAddStudentToGroup(payload.group)) {
+        alert('Este grupo ya alcanzó la capacidad máxima de 25 alumnos. Selecciona otro grupo.');
+        return;
+      }
+
+      if (editing) {
+        await useStudentStore.getState().updateStudent(editing.id, {
+          name: payload.name,
+          email: payload.email,
+          phone: payload.phone,
+          status: payload.status,
+          group: payload.group,
+        });
+      } else {
+        const { createStudentRequest } = await import('../../services/studentService');
+        const created = await createStudentRequest(payload);
+        await loadStudents();
+        const pwd = getPasswordForAccount(created.email);
+        if (pwd) {
+          setCreatedEmail(created.email);
+          setCreatedPassword(pwd);
+          setPasswordModal(true);
+        }
+      }
+      setModalOpen(false);
+      reset();
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error al guardar el estudiante');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const { deleteStudentRequest } = await import('../../services/studentService');
+      await deleteStudentRequest(deleteId);
+      await loadStudents();
+    } catch (err) {
+      console.error('Error al eliminar:', err);
+      alert('Error al eliminar el estudiante');
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const handleAcceptRequest = async (id: string) => {
+    try {
+      await acceptRequest(id);
+    } catch (err) {
+      console.error('Error al aceptar:', err);
+    }
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    try {
+      await rejectRequest(id);
+    } catch (err) {
+      console.error('Error al rechazar:', err);
+    }
   };
 
   const counts = useMemo(() => ({
@@ -196,16 +286,16 @@ export const Students = () => {
       </div>
 
       {/* Solicitudes Pendientes */}
-      {counts.pendientes > 0 && (
+      {pendingRequests.length > 0 && (
         <div className="bg-white rounded-2xl p-5"
           style={{ border:'1px solid #f1f5f9', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-base flex items-center gap-2" style={{ color:'#0f172a' }}>
-              <Users size={18} style={{ color:'#f59e0b' }} /> Solicitudes Pendientes ({counts.pendientes})
+              <Users size={18} style={{ color:'#f59e0b' }} /> Solicitudes Pendientes ({pendingRequests.length})
             </h3>
           </div>
           <div className="space-y-3">
-            {students.filter((s) => s.status === 'Pendiente').map((s) => (
+            {pendingRequests.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-4 rounded-xl"
                 style={{ background:'#fffbeb', border:'1px solid #fcd34d' }}>
                 <div className="flex items-center gap-3">
@@ -219,16 +309,12 @@ export const Students = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => {
-                    setStudents((p) => p.map((st) => st.id === s.id ? { ...st, status: 'Activo' } : st));
-                  }}
+                  <button onClick={() => handleAcceptRequest(s.id)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white hover:opacity-90 transition-all"
                     style={{ background:'linear-gradient(135deg,#059669,#10b981)' }}>
                     <Check size={14} /> Aceptar
                   </button>
-                  <button onClick={() => {
-                    setStudents((p) => p.filter((st) => st.id !== s.id));
-                  }}
+                  <button onClick={() => handleRejectRequest(s.id)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all"
                     style={{ border:'1px solid #fca5a5', color:'#dc2626' }}>
                     <XCircle size={14} /> Rechazar
@@ -387,6 +473,7 @@ export const Students = () => {
                 { icon: Phone, label:'Teléfono', val: viewStudent.phone   },
                 { icon: Award, label:'Programa', val: viewStudent.program },
                 { icon: Users, label:'Grupo',    val: viewStudent.group   },
+                { icon: Users, label:'Centro',   val: getCenterForGroup(viewStudent.group)?.name ?? 'Sin centro' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-2 p-3 rounded-xl" style={{ background:'#f8fafc' }}>
                   <item.icon size={14} style={{ color:'#7c3aed', marginTop:'2px' }} />
@@ -446,22 +533,32 @@ export const Students = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color:'#334155' }}>Programa</label>
-              <select className={ic()} style={is(!!errors.program)}
-                {...register('program', { required:'Obligatorio' })}>
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Centro / Organización</label>
+              <select className={ic()} style={is(!!errors.centerId)}
+                {...register('centerId', { required:'Selecciona un centro' })}>
                 <option value="">Seleccionar...</option>
-                {PROGRAMS.map((p) => <option key={p}>{p}</option>)}
+                {CENTERS.map((center) => (
+                  <option key={center.id} value={center.id}>{center.name}</option>
+                ))}
               </select>
-              {errors.program && <p className="text-xs text-red-500">{errors.program.message}</p>}
+              {errors.centerId && <p className="text-xs text-red-500">{errors.centerId.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium" style={{ color:'#334155' }}>Grupo</label>
               <select className={ic()} style={is(!!errors.group)}
-                {...register('group', { required:'Obligatorio' })}>
+                {...register('group', { required:'Selecciona un grupo' })}>
                 <option value="">Seleccionar...</option>
-                {GROUPS.map((g) => <option key={g}>{g}</option>)}
+                {availableGroups.map((group) => (
+                  <option key={group.name} value={group.name}>{group.name}</option>
+                ))}
               </select>
               {errors.group && <p className="text-xs text-red-500">{errors.group.message}</p>}
+            </div>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+              <p>{selectedCenter ? `El centro ${selectedCenter.name} permite un máximo de ${selectedCenter.plan === 'Básico' ? '2' : selectedCenter.plan === 'Pro' ? '6' : 'ilimitados'} grupos y cada grupo admite hasta 25 alumnos.` : 'Selecciona un centro para ver sus límites.'}</p>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -491,7 +588,7 @@ export const Students = () => {
             <button onClick={() => setDeleteId(null)}
               className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all"
               style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
-            <button onClick={() => { if (deleteId) setStudents((p) => p.filter((s) => s.id !== deleteId)); setDeleteId(null); }}
+            <button onClick={confirmDelete}
               className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
               style={{ background:'linear-gradient(135deg,#ef4444,#dc2626)' }}>Eliminar</button>
           </div>
@@ -535,20 +632,11 @@ export const Students = () => {
               <p className="text-xs" style={{ color:'#94a3b8' }}>{assignModal.email}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color:'#334155' }}>Programa</label>
-              <select className={ic()} style={is(!!assignErrors.program)}
-                {...registerAssign('program', { required:'Obligatorio' })}>
-                <option value="">Seleccionar...</option>
-                {PROGRAMS.map((p) => <option key={p}>{p}</option>)}
-              </select>
-              {assignErrors.program && <p className="text-xs text-red-500">{assignErrors.program.message}</p>}
-            </div>
-            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium" style={{ color:'#334155' }}>Grupo</label>
               <select className={ic()} style={is(!!assignErrors.group)}
                 {...registerAssign('group', { required:'Obligatorio' })}>
                 <option value="">Seleccionar...</option>
-                {GROUPS.map((g) => <option key={g}>{g}</option>)}
+                {assignableGroups.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
               </select>
               {assignErrors.group && <p className="text-xs text-red-500">{assignErrors.group.message}</p>}
             </div>

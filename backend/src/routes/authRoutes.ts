@@ -33,7 +33,7 @@ router.post('/register', rateLimiter, async (req, res) => {
 });
 
 // POST /auth/login
-router.post('/login', rateLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     // Validar input
     const { email, password } = loginSchema.parse(req.body);
@@ -41,7 +41,11 @@ router.post('/login', rateLimiter, async (req, res) => {
     // Login
     const result = await login(email, password);
 
-    res.json(result);
+    res.json({
+      token: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken,
+      user: result.user,
+    });
   } catch (error: any) {
     if (error.name === 'ZodError') {
       res.status(400).json({ error: 'Validación fallida', details: error.errors });
@@ -60,7 +64,11 @@ router.post('/refresh', async (req, res) => {
     // Refresh token
     const result = await refreshToken(token);
 
-    res.json(result);
+    res.json({
+      token: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken,
+      user: result.user,
+    });
   } catch (error: any) {
     if (error.name === 'ZodError') {
       res.status(400).json({ error: 'Validación fallida', details: error.errors });
@@ -139,3 +147,4 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 });
 
 export default router;
+

@@ -9,13 +9,13 @@ import useAuthStore from '../../../store/authStore';
 
 const NAV_ITEMS = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin'] },
+  { to: '/organizations', icon: Building2,        label: 'Centros',     roles: ['admin'] },
+  { to: '/groups',        icon: Users,            label: 'Grupos',      roles: ['admin'] },
   { to: '/courses',       icon: BookOpen,         label: 'Programas',   roles: ['admin'] },
   { to: '/modules',       icon: Layers,           label: 'Módulos',     roles: ['admin'] },
-  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones',    roles: ['admin'] },
   { to: '/students',      icon: Users,            label: 'Alumnos',     roles: ['admin'] },
   { to: '/teachers',      icon: GraduationCap,    label: 'Docentes',    roles: ['admin'] },
-  { to: '/groups',        icon: Users,            label: 'Grupos',      roles: ['admin'] },
-  { to: '/organizations', icon: Building2,        label: 'Centros',     roles: ['admin'] },
+  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones',    roles: ['admin'] },
   { to: '/reports',       icon: BarChart2,        label: 'Reportes',    roles: ['admin'] },
 ];
 

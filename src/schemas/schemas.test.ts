@@ -25,6 +25,7 @@ describe('schemas de gestión', () => {
   it('acepta un estudiante válido', () => {
     expect(studentSchema.safeParse({
       name: 'María García', email: 'maria@example.com', phone: '+57 300 000 0000',
+      centerId: 'c1',
       program: 'Mindfulness', group: 'Grupo A', status: 'Activo',
     }).success).toBe(true);
   });

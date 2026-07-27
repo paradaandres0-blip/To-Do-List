@@ -1,17 +1,32 @@
-import { useState } from 'react';
-import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2, AlertTriangle } from 'lucide-react';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
+import { GROUPS as SHARED_GROUPS, CENTERS, getStudentsByGroup, addGroup, updateGroup, removeGroup, canAddGroupToCenter } from '../../services/sharedMockDb';
+import { getTeachersRequest } from '../../services/teacherService';
+import type { Teacher } from '../../types/teacher.types';
 
 // Genera un id único sin usar Math.random (evita impureza en render)
 const generateId = () => crypto.randomUUID();
 
-const INITIAL_GROUPS: Group[] = [
-  { id: '1', name: 'Cohorte Fitness 2026',         org: 'Academia WorkFlow',       mentor: 'Carlos Ruiz',    students: 45,  status: 'En curso',      members: ['Laura Gómez', 'Diego Torres', 'Mariana López', 'Camila Pérez'] },
-  { id: '2', name: 'Programa Nutrición Pro',        org: 'WorkFlow Academy',        mentor: 'Ana Gómez',      students: 120, status: 'Inscripciones', members: ['Andrés Ramírez', 'Alejandra Ortiz', 'Sergio Díaz', 'Natalia Soto'] },
-  { id: '3', name: 'Bienestar Mental Avanzado',     org: 'WorkFlow Academy',        mentor: 'Julián Parada',  students: 32,  status: 'En curso',      members: ['Camila Torres', 'Martín Muñoz', 'Laura Duarte', 'María Jiménez'] },
-  { id: '4', name: 'Pérdida de Peso Sostenible',    org: 'Centro de Salud Vital',   mentor: 'Laura Silva',    students: 25,  status: 'Finalizado',    members: ['Sofía Vega', 'David Rojas', 'Mónica León', 'Raúl Herrera'] },
-];
+// Grupos provistos por sharedMockDb
+interface GroupProgramAssignment {
+  program: string;
+  mentor: string;
+}
+
+interface GroupView {
+  id: string;
+  name: string;
+  org: string;
+  centerId: string;
+  mentor: string;
+  students: number;
+  status: 'En curso' | 'Inscripciones' | 'Finalizado';
+  active: boolean;
+  programs: GroupProgramAssignment[];
+  members: string[];
+}
 
 const statusStyle: Record<string, string> = {
   'En curso':      'bg-blue-50   text-blue-700   border-blue-200',
@@ -20,24 +35,61 @@ const statusStyle: Record<string, string> = {
 };
 
 interface Group {
-  id:       string;
-  name:     string;
-  org:      string;
-  mentor:   string;
+  id: string;
+  name: string;
+  org: string;
+  mentor: string;
+  centerId: string;
   students: number;
-  status:   'En curso' | 'Inscripciones' | 'Finalizado';
-  members:  string[];
+  status: 'En curso' | 'Inscripciones' | 'Finalizado';
+  active: boolean;
+  programs: GroupProgramAssignment[];
+  members: string[];
 }
 
-interface NewGroupForm { name: string; org: string; mentor: string; }
+interface GroupProgramAssignmentForm {
+  program: string;
+  mentor: string;
+}
+
+interface NewGroupForm {
+  name: string;
+  centerId: string;
+  active: boolean;
+  programs: GroupProgramAssignmentForm[];
+}
 
 export const Groups = () => {
-  const [groups, setGroups]       = useState<Group[]>(INITIAL_GROUPS);
-  const [search, setSearch]       = useState('');
+  const programOptions = ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness', 'Pérdida de Peso'];
+
+  const mapped = useMemo<GroupView[]>(() => SHARED_GROUPS.map((g) => ({
+    id: g.id,
+    name: g.name,
+    org: CENTERS.find((c) => c.id === g.centerId)?.name ?? 'Sin centro',
+    centerId: g.centerId,
+    mentor: g.programs?.[0]?.mentor ?? g.mentor,
+    students: getStudentsByGroup(g.name).length,
+    status: g.status,
+    active: g.active,
+    programs: g.programs ?? [{ program: g.program, mentor: g.mentor }],
+    members: getStudentsByGroup(g.name).map((s) => s.name),
+  })), []);
+
+  const [groups, setGroups] = useState<GroupView[]>(mapped);
+  const [search, setSearch] = useState('');
   const [isOpen, setIsOpen]       = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [detailGroup, setDetailGroup] = useState<Group | null>(null);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<NewGroupForm>();
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<NewGroupForm>({
+    defaultValues: {
+      name: '',
+      centerId: '',
+      active: true,
+      programs: [{ program: '', mentor: '' }],
+    },
+  });
+  const { fields, append, remove } = useFieldArray({ control, name: 'programs' });
 
   const filtered = groups.filter(
     (g) =>
@@ -45,32 +97,111 @@ export const Groups = () => {
       g.org.toLowerCase().includes(search.toLowerCase())
   );
 
+  const refresh = () => setGroups(SHARED_GROUPS.map((g) => ({
+    id: g.id,
+    name: g.name,
+    org: CENTERS.find((c) => c.id === g.centerId)?.name ?? 'Sin centro',
+    centerId: g.centerId,
+    mentor: g.programs?.[0]?.mentor ?? g.mentor,
+    students: getStudentsByGroup(g.name).length,
+    status: g.status,
+    active: g.active,
+    programs: g.programs ?? [{ program: g.program, mentor: g.mentor }],
+    members: getStudentsByGroup(g.name).map((s) => s.name),
+  })));
+
+  const resetGroupForm = () => reset({
+    name: '',
+    centerId: '',
+    active: true,
+    programs: [{ program: '', mentor: '' }],
+  });
+
   const onSubmit = (data: NewGroupForm) => {
-    if (editingGroup) {
-      setGroups((prev) => prev.map((g) => g.id === editingGroup.id ? { ...g, ...data } : g));
-    } else {
-      setGroups([{ id: generateId(), ...data, students: 0, status: 'Inscripciones', members: [] }, ...groups]);
+    const validPrograms = data.programs.filter((item) => item.program && item.mentor);
+    if (validPrograms.length === 0) {
+      alert('Agrega al menos un programa y selecciona su mentor.');
+      return;
     }
+
+    const selectedCenter = CENTERS.find((c) => c.id === data.centerId);
+    const currentGroupCount = SHARED_GROUPS.filter((g) => g.centerId === data.centerId).length;
+    if (selectedCenter && !selectedCenter.active) {
+      alert('No puedes crear grupos en un centro inactivo.');
+      return;
+    }
+    if (!canAddGroupToCenter(data.centerId) && (!editingGroup || editingGroup.centerId !== data.centerId)) {
+      alert(`El centro seleccionado ya alcanzó el límite de grupos según su plan (${currentGroupCount}/${selectedCenter ? 'Básico: 2, Pro: 6, Enterprise: ilimitado' : 'sin plan'})`);
+      return;
+    }
+
+    const programs = validPrograms.map((item) => ({
+      program: item.program,
+      mentor: item.mentor,
+    }));
+
+    if (editingGroup) {
+      updateGroup(editingGroup.id, {
+        name: data.name,
+        centerId: data.centerId,
+        mentor: programs[0]?.mentor ?? '',
+        program: programs[0]?.program ?? '',
+        programs,
+        active: data.active,
+      } as Partial<typeof SHARED_GROUPS[number]>);
+    } else {
+      addGroup({
+        id: generateId(),
+        name: data.name,
+        centerId: data.centerId,
+        mentor: programs[0]?.mentor ?? '',
+        status: 'Inscripciones',
+        program: programs[0]?.program ?? '',
+        programs,
+        active: data.active,
+      } as typeof SHARED_GROUPS[number]);
+    }
+    refresh();
     setIsOpen(false);
     setEditingGroup(null);
-    reset();
+    resetGroupForm();
   };
 
-  const openEdit = (group: Group) => {
-    setEditingGroup(group);
-    reset({ name: group.name, org: group.org, mentor: group.mentor });
+  const openEdit = (group: GroupView) => {
+    setEditingGroup(group as unknown as Group);
+    const center = CENTERS.find((c) => c.name === group.org);
+    const shared = SHARED_GROUPS.find((g) => g.id === group.id);
+    const programs = shared?.programs ?? [{ program: shared?.program ?? '', mentor: group.mentor }];
+    reset({
+      name: group.name,
+      centerId: center?.id ?? '',
+      active: shared?.active ?? true,
+      programs: programs.map((assignment) => ({ program: assignment.program, mentor: assignment.mentor })),
+    });
     setIsOpen(true);
   };
 
-  const openDetails = (group: Group) => {
+  const openDetails = (group: GroupView) => {
     setDetailGroup(group);
   };
 
   const handleDelete = (id: string) => {
     if (window.confirm('¿Eliminar este grupo?')) {
-      setGroups(groups.filter((g) => g.id !== id));
+      removeGroup(id);
+      refresh();
     }
   };
+
+  useMemo(() => {
+    void getTeachersRequest().then((response) => setTeachers(response.data));
+  }, []);
+
+  const groupedByCenter = useMemo(() => {
+    return CENTERS.map((center) => ({
+      center,
+      groups: groups.filter((group) => group.centerId === center.id),
+    })).filter((section) => section.groups.length > 0);
+  }, [groups]);
 
   return (
     <div className="w-full space-y-6">
@@ -87,7 +218,7 @@ export const Groups = () => {
           </p>
         </div>
         <button
-          onClick={() => { setEditingGroup(null); reset(); setIsOpen(true); }}
+          onClick={() => { setEditingGroup(null); resetGroupForm(); setIsOpen(true); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
         >
@@ -113,79 +244,88 @@ export const Groups = () => {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filtered.map((group) => (
-          <div
-            key={group.id}
-            className="bg-white rounded-2xl p-5 flex flex-col gap-4 transition-all hover:shadow-md relative"
-            style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-          >
-            {/* Acciones */}
-            <div className="absolute top-4 right-4 flex items-center gap-1">
-              <button onClick={() => openDetails(group)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Ver detalle">
-                <MoreVertical size={16} style={{ color: '#94a3b8' }} />
-              </button>
-              <button onClick={() => openEdit(group)}
-                className="p-1.5 rounded-lg hover:bg-violet-50 transition-colors"
-                title="Editar grupo">
-                <Pencil size={16} style={{ color: '#7c3aed' }} />
-              </button>
-            </div>
-
-            {/* Avatar grupo */}
-            <div className="flex items-center gap-3 pr-8">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-lg font-extrabold flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-              >
-                {group.name.charAt(0)}
+      {/* Grid por centro */}
+      <div className="space-y-6">
+        {groupedByCenter.map((section) => (
+          <div key={section.center.id} className="rounded-2xl bg-white p-4" style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">{section.center.name}</h2>
+                <p className="text-sm text-slate-500">{section.groups.length} grupos</p>
               </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold leading-tight truncate" style={{ color: '#0f172a' }}>{group.name}</h3>
-                <p className="text-xs mt-0.5 truncate" style={{ color: '#64748b' }}>{group.org}</p>
-              </div>
-            </div>
-
-            {/* Info */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs" style={{ color: '#64748b' }}>
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                >
-                  {group.mentor.charAt(0)}
-                </div>
-                <span>Mentor: <span className="font-semibold" style={{ color: '#334155' }}>{group.mentor}</span></span>
-              </div>
-              <div className="flex items-center gap-2 text-xs" style={{ color: '#64748b' }}>
-                <BookOpen size={14} style={{ color: '#94a3b8' }} />
-                <span>{group.students} estudiantes</span>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div
-              className="flex items-center justify-between pt-4"
-              style={{ borderTop: '1px solid #f8fafc' }}
-            >
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[group.status]}`}>
-                {group.status}
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${section.center.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                {section.center.active ? 'Activo' : 'Inactivo'}
               </span>
-              <button
-                onClick={() => handleDelete(group.id)}
-                className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
-              >
-                <Trash2 size={14} style={{ color: '#f87171' }} />
-              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {section.groups.map((group) => (
+                <div
+                  key={group.id}
+                  className="bg-slate-50 rounded-2xl p-5 flex flex-col gap-4 transition-all hover:shadow-md relative"
+                  style={{ border: '1px solid #f1f5f9' }}
+                >
+                  <div className="absolute top-4 right-4 flex items-center gap-1">
+                    <button onClick={() => openDetails(group)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      title="Ver detalle">
+                      <MoreVertical size={16} style={{ color: '#94a3b8' }} />
+                    </button>
+                    <button onClick={() => openEdit(group)}
+                      className="p-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+                      title="Editar grupo">
+                      <Pencil size={16} style={{ color: '#7c3aed' }} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3 pr-8">
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-lg font-extrabold flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                    >
+                      {group.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold leading-tight truncate" style={{ color: '#0f172a' }}>{group.name}</h3>
+                      <p className="text-xs mt-0.5 truncate" style={{ color: '#64748b' }}>{group.org}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {group.programs.map((assignment) => (
+                        <span key={`${group.id}-${assignment.program}`} className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
+                          {assignment.program}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: '#64748b' }}>
+                      <BookOpen size={14} style={{ color: '#94a3b8' }} />
+                      <span>{group.students} estudiantes</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid #f8fafc' }}>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[group.status]}`}>
+                      {group.status}
+                    </span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${group.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                      {group.active ? 'Activo' : 'Inactivo'}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(group.id)}
+                      className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
+                    >
+                      <Trash2 size={14} style={{ color: '#f87171' }} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
 
         {filtered.length === 0 && (
-          <div className="col-span-3 py-16 text-center" style={{ color: '#94a3b8' }}>
+          <div className="py-16 text-center" style={{ color: '#94a3b8' }}>
             <Users size={36} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm font-medium">No se encontraron grupos</p>
           </div>
@@ -193,7 +333,7 @@ export const Groups = () => {
       </div>
 
       {/* Modal */}
-      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingGroup(null); reset(); }} title={editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}>
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingGroup(null); resetGroupForm(); }} title={editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           <div className="flex flex-col gap-1.5">
@@ -208,35 +348,92 @@ export const Groups = () => {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: '#334155' }}>Organización</label>
+            <label className="text-sm font-medium" style={{ color: '#334155' }}>Centro</label>
             <select
               className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
-              style={{ borderColor: errors.org ? '#f87171' : '#e2e8f0', color: '#0f172a' }}
-              {...register('org', { required: 'Selecciona una organización' })}
+              style={{ borderColor: errors.centerId ? '#f87171' : '#e2e8f0', color: '#0f172a' }}
+              {...register('centerId', { required: 'Selecciona un centro' })}
             >
               <option value="">Seleccionar...</option>
-              <option>Universidad Tecnológica</option>
-              <option>Instituto de Desarrollo</option>
-              <option>Academia CodeCraft</option>
+              {CENTERS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            {errors.org && <p className="text-xs text-red-500">{errors.org.message}</p>}
+            {errors.centerId && <p className="text-xs text-red-500">{errors.centerId.message}</p>}
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+              <p>El límite de grupos depende del plan del centro: Básico 2, Pro 6 y Enterprise ilimitado. Además, cada grupo admite máximo 25 alumnos.</p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: '#334155' }}>Mentor Asignado</label>
-            <input
-              placeholder="Ej. Julián Parada"
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium" style={{ color: '#334155' }}>Programas y mentores</label>
+              <button
+                type="button"
+                onClick={() => append({ program: '', mentor: '' })}
+                className="inline-flex items-center gap-1 rounded-lg border border-violet-200 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+              >
+                <Plus size={14} /> Agregar programa
+              </button>
+            </div>
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="rounded-xl border border-slate-200 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">Programa {index + 1}</span>
+                    {fields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <select
+                      className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
+                      {...register(`programs.${index}.program`, { required: 'Selecciona un programa' })}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {programOptions.map((program) => <option key={program} value={program}>{program}</option>)}
+                    </select>
+                    {errors.programs?.[index]?.program && <p className="text-xs text-red-500">{errors.programs[index]?.program?.message}</p>}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <select
+                      className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
+                      {...register(`programs.${index}.mentor`, { required: 'Selecciona un mentor' })}
+                    >
+                      <option value="">Seleccionar mentor...</option>
+                      {teachers.map((teacher) => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}
+                    </select>
+                    {errors.programs?.[index]?.mentor && <p className="text-xs text-red-500">{errors.programs[index]?.mentor?.message}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#334155' }}>Estado</label>
+            <select
               className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
-              style={{ borderColor: errors.mentor ? '#f87171' : '#e2e8f0', color: '#0f172a' }}
-              {...register('mentor', { required: 'El mentor es obligatorio' })}
-            />
-            {errors.mentor && <p className="text-xs text-red-500">{errors.mentor.message}</p>}
+              style={{ borderColor: '#e2e8f0', color: '#0f172a' }}
+              {...register('active', { required: 'Selecciona un estado' })}
+            >
+              <option value="true">Activo</option>
+              <option value="false">Inactivo</option>
+            </select>
           </div>
 
           <div className="flex gap-3 justify-end pt-2">
             <button
               type="button"
-              onClick={() => { setIsOpen(false); setEditingGroup(null); reset(); }}
+              onClick={() => { setIsOpen(false); setEditingGroup(null); resetGroupForm(); }}
               className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-slate-100"
               style={{ border: '1px solid #e2e8f0', color: '#475569' }}
             >
@@ -266,8 +463,14 @@ export const Groups = () => {
                 <p className="text-sm font-medium text-slate-900">{detailGroup.org}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide">Mentor</p>
-                <p className="text-sm font-medium text-slate-900">{detailGroup.mentor}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Programas</p>
+                <div className="flex flex-wrap gap-2">
+                  {detailGroup.programs.map((assignment) => (
+                    <span key={`${detailGroup.id}-${assignment.program}`} className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
+                      {assignment.program}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-slate-500 uppercase tracking-wide">Estudiantes</p>

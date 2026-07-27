@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, BookOpen, Layout, Settings2, Trash2, Clock, CheckCircle2, Pencil } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, BookOpen, Layout, Trash2, Clock, CheckCircle2, Pencil } from 'lucide-react';
+import type { Module } from '../../types/module.types';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
 import { Modal } from '../../components/common/Modal/Modal';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import type { Course } from '../../types/course.types';
 import {
   getCoursesRequest,
@@ -11,37 +12,49 @@ import {
   updateCourseRequest,
   deleteCourseRequest
 } from '../../services/courseService';
+import { GROUPS } from '../../services/sharedMockDb';
+import { getModulesRequest } from '../../services/moduleService';
+import useActivityStore from '../../store/activityStore';
 
 interface CourseFormInputs {
   title: string;
   description: string;
-  group: string;
-  status: 'Publicado' | 'Borrador';
+  groups: Array<{ group: string }>;
+  status: 'Activo' | 'Inactivo';
 }
 
 export const Courses = () => {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'Todos' | 'Activo' | 'Inactivo'>('Todos');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const loadActivities = useActivityStore((s) => s.loadActivities);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CourseFormInputs>({
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<CourseFormInputs>({
     defaultValues: {
       title: '',
       description: '',
-      group: '',
-      status: 'Borrador'
+      groups: [{ group: '' }],
+      status: 'Inactivo'
     }
   });
+  const { fields, append, remove } = useFieldArray({ control, name: 'groups' });
 
   // Cargar cursos al montar el componente
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const data = await getCoursesRequest();
-        setCourses(data);
+        const [coursesData, modulesData] = await Promise.all([
+          getCoursesRequest(),
+          getModulesRequest(),
+        ]);
+        setCourses(coursesData);
+        setModules(modulesData);
+        await loadActivities();
       } catch (error) {
         console.error('Error al obtener cursos:', error);
       } finally {
@@ -49,7 +62,7 @@ export const Courses = () => {
       }
     };
     fetchCourses();
-  }, []);
+  }, [loadActivities]);
 
   // Rellenar formulario cuando se edita o se abre en modo creación
   useEffect(() => {
@@ -57,35 +70,50 @@ export const Courses = () => {
       reset({
         title: editingCourse.title,
         description: editingCourse.description,
-        group: editingCourse.group,
+        groups: (editingCourse.groups ?? []).map((group) => ({ group })),
         status: editingCourse.status,
       });
     } else {
       reset({
         title: '',
         description: '',
-        group: '',
-        status: 'Borrador',
+        groups: [{ group: '' }],
+        status: 'Inactivo',
       });
     }
   }, [editingCourse, reset]);
 
-  const filteredCourses = courses.filter(
-    (course) =>
+  const filteredCourses = courses.filter((course) => {
+    const matchesSearch =
       course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.group.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      (course.groups ?? []).some((group) => group.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus = statusFilter === 'Todos' || course.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const moduleCountByCourse = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    modules.forEach((module) => {
+      countMap[module.course] = (countMap[module.course] ?? 0) + 1;
+    });
+    return countMap;
+  }, [modules]);
 
   const onSubmit = async (data: CourseFormInputs) => {
+    const validGroups = data.groups.map((item) => item.group).filter(Boolean);
+    if (validGroups.length === 0) {
+      alert('Agrega al menos un grupo asignado al curso.');
+      return;
+    }
+
     setIsSaving(true);
     try {
+      const payload = { ...data, groups: validGroups };
       if (editingCourse) {
-        // Modo Edición
-        const updatedCourse = await updateCourseRequest(editingCourse.id, data);
+        const updatedCourse = await updateCourseRequest(editingCourse.id, payload);
         setCourses(courses.map((c) => (c.id === editingCourse.id ? updatedCourse : c)));
       } else {
-        // Modo Creación
-        const newCourse = await createCourseRequest(data);
+        const newCourse = await createCourseRequest(payload);
         setCourses([newCourse, ...courses]);
       }
       handleCloseModal();
@@ -148,10 +176,17 @@ export const Courses = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" size="sm" leftIcon={<Settings2 size={16} />}>
-            Filtros Avanzados
-          </Button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {(['Todos', 'Activo', 'Inactivo'] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setStatusFilter(filter)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${statusFilter === filter ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -175,9 +210,9 @@ export const Courses = () => {
                     <h3 className="text-lg font-bold text-dark">{course.title}</h3>
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        course.status === 'Publicado'
+                        course.status === 'Activo'
                           ? 'bg-green-100 text-green-700'
-                          : 'bg-orange-100 text-orange-700'
+                          : 'bg-slate-100 text-slate-700'
                       }`}
                     >
                       {course.status}
@@ -189,11 +224,11 @@ export const Courses = () => {
                   <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-light-gray">
                     <div className="flex items-center gap-1.5 text-secondary">
                       <Layout size={14} />
-                      <span>{course.group}</span>
+                      <span>{(course.groups ?? []).join(', ')}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 size={14} />
-                      <span>{course.modulesCount} Módulos</span>
+                      <span>{moduleCountByCourse[course.title] ?? course.modulesCount} módulos</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Clock size={14} />
@@ -259,12 +294,49 @@ export const Courses = () => {
               <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.description.message}</p>
             )}
           </div>
-          <Input
-            label="Grupo Asignado"
-            placeholder="Ej: Cohorte 2026 - Desarrollo Web"
-            error={errors.group?.message}
-            {...register('group', { required: 'El grupo es obligatorio' })}
-          />
+          <div className="w-full">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-dark-gray">
+                Grupos asignados
+              </label>
+              <button
+                type="button"
+                onClick={() => append({ group: '' })}
+                className="inline-flex items-center gap-1 rounded-lg border border-primary/20 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+              >
+                <Plus size={14} /> Agregar grupo
+              </button>
+            </div>
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <select
+                      className="block w-full rounded-lg border border-light-gray/60 bg-background text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors sm:text-sm px-3 py-2.5"
+                      {...register(`groups.${index}.group`, { required: 'Selecciona un grupo' })}
+                    >
+                      <option value="">Seleccionar grupo...</option>
+                      {GROUPS.map((group) => (
+                        <option key={group.id} value={group.name}>{group.name}</option>
+                      ))}
+                    </select>
+                    {errors.groups?.[index]?.group && (
+                      <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.groups[index]?.group?.message}</p>
+                    )}
+                  </div>
+                  {fields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="w-full">
             <label className="block text-sm font-medium text-dark-gray mb-1.5">
               Estado
@@ -273,8 +345,8 @@ export const Courses = () => {
               className="block w-full rounded-lg border border-light-gray/60 bg-background text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors sm:text-sm px-3 py-2.5"
               {...register('status', { required: 'El estado es obligatorio' })}
             >
-              <option value="Borrador">Borrador</option>
-              <option value="Publicado">Publicado</option>
+              <option value="Inactivo">Inactivo</option>
+              <option value="Activo">Activo</option>
             </select>
             {errors.status && (
               <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.status.message}</p>

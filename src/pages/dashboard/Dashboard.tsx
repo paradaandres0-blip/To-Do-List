@@ -27,13 +27,21 @@ const statusStyle: Record<string, string> = {
   'Pendiente':      'bg-slate-50   text-slate-500   border-slate-200',
 };
 
-// ── Categorías de programas ──
-const CATEGORIES = [
-  { label: 'Fitness',    icon: Dumbbell, pct: 42, color: '#7c3aed', students: 904  },
-  { label: 'Nutrición',  icon: Apple,    pct: 28, color: '#2563eb', students: 602  },
-  { label: 'Bienestar',  icon: Brain,    pct: 18, color: '#0ea5e9', students: 387  },
-  { label: 'Motivación', icon: Flame,    pct: 12, color: '#10b981', students: 255  },
-];
+// ── Mapa de programas → categorías (puramente visual) ──
+const PROGRAM_CATEGORY_MAP: Record<string, string> = {
+  'Entrenamiento Funcional':         'Fitness',
+  'Fuerza y Acondicionamiento':      'Fitness',
+  'Pérdida de Peso':                 'Fitness',
+  'Nutrición Deportiva':             'Nutrición',
+  'Mindfulness':                     'Bienestar',
+  'Bienestar Mental':                'Bienestar',
+};
+
+const CATEGORY_META: Record<string, { icon: typeof Dumbbell; color: string }> = {
+  'Fitness':    { icon: Dumbbell, color: '#7c3aed' },
+  'Nutrición':  { icon: Apple,    color: '#2563eb' },
+  'Bienestar':  { icon: Brain,    color: '#0ea5e9' },
+};
 
 const fade = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
@@ -80,8 +88,8 @@ export const Dashboard = () => {
     setExportOpen(false);
   };
 
-  // Gráfica y top alumnos: data falsa dinámica (sin año 2025 hardcodeado)
-  const chartBars = useMemo(() => buildMonthlySessionsChart(7), []);
+  // Gráfica de sesiones extraída de los datos reales de reportes
+  const chartBars = useMemo(() => buildMonthlySessionsChart(reportSessions, 7), [reportSessions]);
   const chartStats = useMemo(() => chartMiniStats(chartBars), [chartBars]);
   const chartMax = useMemo(
     () => (chartBars.length ? Math.max(...chartBars.map((b) => b.val), 1) : 1),
@@ -95,6 +103,38 @@ export const Dashboard = () => {
   );
   const periodBadge = useMemo(() => currentMonthBadge(), []);
   const periodLabel = useMemo(() => chartPeriodLabel(chartBars), [chartBars]);
+
+  // Categorías de programas calculadas desde los estudiantes reales
+  const categoriesData = useMemo(() => {
+    const catMap: Record<string, { students: number; totalPct: number }> = {};
+    let totalStudents = 0;
+
+    students.forEach((s) => {
+      const catName = PROGRAM_CATEGORY_MAP[s.program] ?? 'Otros';
+      if (!catMap[catName]) {
+        catMap[catName] = { students: 0, totalPct: 0 };
+      }
+      catMap[catName].students++;
+      totalStudents++;
+    });
+
+    const categories = Object.entries(catMap).map(([label, data]) => {
+      const meta = CATEGORY_META[label] ?? { icon: Flame, color: '#10b981' };
+      const pct = totalStudents > 0 ? Math.round((data.students / totalStudents) * 100) : 0;
+      return {
+        label,
+        icon: meta.icon,
+        color: meta.color,
+        pct,
+        students: data.students,
+      };
+    });
+
+    // Ordenar de mayor a menor porcentaje
+    categories.sort((a, b) => b.pct - a.pct);
+
+    return { categories, totalStudents };
+  }, [students]);
 
   // Carga métricas al montar (respeta caché de 1 min)
   useEffect(() => {
@@ -400,7 +440,7 @@ export const Dashboard = () => {
         <motion.div {...fade(0.33)} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <h2 className="text-base font-bold mb-5 text-slate-900">Programas por Categoría</h2>
           <div className="space-y-4">
-            {CATEGORIES.map((cat) => (
+            {categoriesData.categories.map((cat) => (
               <div key={cat.label}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
@@ -423,7 +463,7 @@ export const Dashboard = () => {
            {/* Total */}
            <div className="mt-5 pt-4 flex items-center justify-between border-t border-slate-100">
              <span className="text-sm font-medium text-slate-500">Total alumnos</span>
-             <span className="text-lg font-extrabold text-slate-900">2,148</span>
+             <span className="text-lg font-extrabold text-slate-900">{categoriesData.totalStudents.toLocaleString()}</span>
            </div>
         </motion.div>
       </div>

@@ -6,7 +6,7 @@ import type {
 } from '../types/teacher.types';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import { teacherSchema } from '../schemas/teacher.schema';
-import { addMockAccount, getPasswordForAccount } from './mockDb';
+import { addMockAccount } from './mockDb';
 
 // ── Helper: extraer data de ApiResponse ──
 const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {

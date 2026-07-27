@@ -107,7 +107,7 @@ export default function Navbar() {
             >
               <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <p className="text-sm font-bold text-white">{user?.name ?? 'Administrador'}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{user?.email ?? 'admin@workflow.com'}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{user?.email ?? 'admin@workflow.academy'}</p>
               </div>
               <div className="py-1.5">
                 {[

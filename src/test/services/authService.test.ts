@@ -45,10 +45,10 @@ describe('authService', () => {
 
   describe('loginRequest', () => {
     it('returns token and user on successful login', async () => {
-      const result = await loginRequest({ email: 'admin@workflow.com', password: 'admin123' });
+      const result = await loginRequest({ email: 'admin@workflow.academy', password: '123456' });
       expect(result.token).toBeDefined();
       expect(result.user).toBeDefined();
-      expect(result.user.email).toBe('admin@workflow.com');
+      expect(result.user.email).toBe('admin@workflow.academy');
     });
 
     it('throws error for invalid credentials', async () => {
