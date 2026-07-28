@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
 import { Pagination } from '../../components/common/Pagination/Pagination';
 import { getPasswordForAccount } from '../../services/mockDb';
-import { CENTERS, GROUPS as SHARED_GROUPS, getCenterForGroup, getGroupByName, canAddStudentToGroup } from '../../services/sharedMockDb';
+import { getGroupsRequest } from '../../services/groupService';
+import { getCentersRequest } from '../../services/centerService';
 import useStudentStore from '../../store/studentStore';
 import type { Student } from '../../types/student.types';
 
@@ -72,6 +73,8 @@ export const Students = () => {
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [passwordModal, setPasswordModal] = useState(false);
+  const [centers, setCenters] = useState<Array<{ id: string; name: string; active?: boolean; plan?: string }>>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string; centerId: string; active?: boolean; programs?: Array<{ program: string }> }>>([]);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
@@ -79,16 +82,16 @@ export const Students = () => {
   const selectedCenterId = watch('centerId');
   const selectedGroup = watch('group');
   const availableGroups = useMemo(() => selectedCenterId
-    ? SHARED_GROUPS.filter((g) => g.centerId === selectedCenterId && g.active)
-    : SHARED_GROUPS.filter((g) => g.active),
-  [selectedCenterId]);
+    ? groups.filter((g) => g.centerId === selectedCenterId && g.active !== false)
+    : groups.filter((g) => g.active !== false),
+  [groups, selectedCenterId]);
 
-  const selectedCenter = useMemo(() => CENTERS.find((center) => center.id === selectedCenterId), [selectedCenterId]);
+  const selectedCenter = useMemo(() => centers.find((center) => center.id === selectedCenterId), [centers, selectedCenterId]);
   const assignableGroups = useMemo(() => {
-    if (!assignModal) return SHARED_GROUPS.filter((group) => group.active);
-    const centerId = SHARED_GROUPS.find((group) => group.name === assignModal.group)?.centerId;
-    return SHARED_GROUPS.filter((group) => group.active && (!centerId || group.centerId === centerId));
-  }, [assignModal]);
+    if (!assignModal) return groups.filter((group) => group.active !== false);
+    const centerId = groups.find((group) => group.name === assignModal.group)?.centerId;
+    return groups.filter((group) => group.active !== false && (!centerId || group.centerId === centerId));
+  }, [assignModal, groups]);
 
   useEffect(() => {
     if (selectedCenterId && selectedGroup) {
@@ -101,15 +104,26 @@ export const Students = () => {
     resolver: zodResolver(studentAssignmentSchema),
   });
 
-  // Cargar estudiantes desde el store compartido al montar
   useEffect(() => {
     if (students.length === 0) {
       loadStudents();
     }
   }, [loadStudents, students.length]);
 
-  // Derivar programas y grupos en cada render para reflejar cambios en sharedMockDb
-  const PROGRAMS = Array.from(new Set(SHARED_GROUPS.map((g) => g.program)));
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const [centersData, groupsData] = await Promise.all([getCentersRequest(), getGroupsRequest()]);
+        setCenters(centersData ?? []);
+        setGroups(groupsData ?? []);
+      } catch (err) {
+        console.error('Error al cargar centros y grupos:', err);
+      }
+    };
+    loadReferenceData();
+  }, []);
+
+  const PROGRAMS = useMemo(() => Array.from(new Set(groups.flatMap((g) => (g.programs ?? []).map((assignment) => assignment.program)).filter(Boolean))), [groups]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -140,7 +154,7 @@ export const Students = () => {
   const openCreate = () => { setEditing(null); reset({ name:'', email:'', phone:'', centerId:'', group:'', status:'Activo' }); setModalOpen(true); };
   const openEdit   = (s: Student) => {
     setEditing(s);
-    const group = getGroupByName(s.group);
+    const group = groups.find((item) => item.name === s.group);
     const centerId = group?.centerId ?? '';
     setValue('name', s.name);
     setValue('email', s.email);
@@ -171,15 +185,10 @@ export const Students = () => {
   const onSubmit = async (data: StudentForm) => {
     try {
       const { centerId, ...payload } = data;
-      const isSameGroup = editing ? editing.group === payload.group : false;
-      const selectedGroupData = SHARED_GROUPS.find((group) => group.name === payload.group);
-      const centerForGroup = selectedGroupData ? CENTERS.find((center) => center.id === selectedGroupData.centerId) : undefined;
-      if (centerForGroup && !centerForGroup.active) {
+      const selectedGroupData = groups.find((group) => group.name === payload.group);
+      const centerForGroup = selectedGroupData ? centers.find((center) => center.id === selectedGroupData.centerId) : undefined;
+      if (centerForGroup && centerForGroup.active === false) {
         alert('No puedes asignar alumnos a un grupo de un centro inactivo.');
-        return;
-      }
-      if (!isSameGroup && !canAddStudentToGroup(payload.group)) {
-        alert('Este grupo ya alcanzó la capacidad máxima de 25 alumnos. Selecciona otro grupo.');
         return;
       }
 
@@ -473,7 +482,7 @@ export const Students = () => {
                 { icon: Phone, label:'Teléfono', val: viewStudent.phone   },
                 { icon: Award, label:'Programa', val: viewStudent.program },
                 { icon: Users, label:'Grupo',    val: viewStudent.group   },
-                { icon: Users, label:'Centro',   val: getCenterForGroup(viewStudent.group)?.name ?? 'Sin centro' },
+                { icon: Users, label:'Centro',   val: centers.find((center) => center.id === groups.find((group) => group.name === viewStudent.group)?.centerId)?.name ?? 'Sin centro' },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-2 p-3 rounded-xl" style={{ background:'#f8fafc' }}>
                   <item.icon size={14} style={{ color:'#7c3aed', marginTop:'2px' }} />
@@ -537,7 +546,7 @@ export const Students = () => {
               <select className={ic()} style={is(!!errors.centerId)}
                 {...register('centerId', { required:'Selecciona un centro' })}>
                 <option value="">Seleccionar...</option>
-                {CENTERS.map((center) => (
+                {centers.map((center) => (
                   <option key={center.id} value={center.id}>{center.name}</option>
                 ))}
               </select>

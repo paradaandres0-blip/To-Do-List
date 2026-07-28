@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, GripVertical, LayoutGrid, Users, Trash2, CheckCircle, Clock, AlertCircle, Circle, X } from 'lucide-react';
+import { Plus, GripVertical, LayoutGrid, Users, Trash2, CheckCircle, Clock, AlertCircle, Circle, X, Eye, EyeOff } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useActivityStore from '../../store/activityStore';
 import useStudentStore from '../../store/studentStore';
 import { getModulesRequest } from '../../services/moduleService';
 import { getCoursesRequest } from '../../services/courseService';
-import { getCoursesForTeacher } from '../../services/sharedMockDb';
 import type { Module } from '../../types/module.types';
 import type { Course } from '../../types/course.types';
 import type { Activity, ActivityStatus } from '../../types/activity.types';
@@ -67,12 +66,15 @@ export const TeacherBoard = () => {
   const [formLesson, setFormLesson] = useState('');
   const [formStudentId, setFormStudentId] = useState('');
   const [formStatus, setFormStatus] = useState<ActivityStatus>('Pendiente');
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Cursos asignados al docente
+  // Cursos asignados al docente según los programas que imparten sus estudiantes
   const myCourseIds = useMemo(() => {
     if (!user?.teacherId) return [];
-    return getCoursesForTeacher(user.teacherId);
-  }, [user?.teacherId]);
+    const teacherStudents = students.filter((student) => student.teacherId === user.teacherId);
+    const programNames = Array.from(new Set(teacherStudents.map((student) => student.program).filter(Boolean)));
+    return courses.filter((course) => programNames.includes(course.title)).map((course) => course.id);
+  }, [courses, students, user?.teacherId]);
 
   // Cargar datos
   useEffect(() => {
@@ -216,6 +218,16 @@ export const TeacherBoard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold bg-slate-100 border border-slate-200 text-slate-700"
+          >
+            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            {showPassword ? 'Ocultar' : 'Mostrar'} contraseña
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
           <select
             value={selectedCourseId}
             onChange={(e) => setSelectedCourseId(e.target.value)}
@@ -232,6 +244,14 @@ export const TeacherBoard = () => {
           </div>
         </div>
       </div>
+
+      {showPassword && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="font-semibold">Credencial de acceso</p>
+          <p className="mt-1">Correo: {user?.email ?? 'docente@workflow.academy'}</p>
+          <p className="font-mono">Contraseña: 123456</p>
+        </div>
+      )}
 
       {filteredModules.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-100 min-h-[280px]">

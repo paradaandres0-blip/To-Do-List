@@ -213,7 +213,7 @@ export const Settings = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold" style={{ color:'#0f172a' }}>{user?.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color:'#94a3b8' }}>{user?.role === 'admin' ? 'Administrador' : user?.role ?? 'Sin rol'} · WorkFlow Academy</p>
+                  <p className="text-xs mt-0.5" style={{ color:'#94a3b8' }}>{user?.role === 'ADMIN' ? 'Administrador' : user?.role ?? 'Sin rol'} · WorkFlow Academy</p>
                   {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
                 </div>
               </div>
@@ -398,16 +398,16 @@ export const Settings = () => {
                 <span
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
                   style={{
-                    background: user?.role === 'admin' ? 'rgba(124,58,237,0.1)' : 'rgba(148,163,184,0.1)',
-                    border:     user?.role === 'admin' ? '1px solid rgba(124,58,237,0.3)' : '1px solid rgba(148,163,184,0.3)',
-                    color:      user?.role === 'admin' ? '#7c3aed' : '#94a3b8',
+                    background: user?.role === 'ADMIN' ? 'rgba(124,58,237,0.1)' : 'rgba(148,163,184,0.1)',
+                    border:     user?.role === 'ADMIN' ? '1px solid rgba(124,58,237,0.3)' : '1px solid rgba(148,163,184,0.3)',
+                    color:      user?.role === 'ADMIN' ? '#7c3aed' : '#94a3b8',
                   }}>
-                  {user?.role === 'admin' ? '🔓 Admin — Edición habilitada' : '🔒 Solo lectura'}
+                  {user?.role === 'ADMIN' ? '🔓 Admin — Edición habilitada' : '🔒 Solo lectura'}
                 </span>
               </div>
 
               {/* Aviso si no es admin */}
-              {user?.role !== 'admin' && (
+              {user?.role !== 'ADMIN' && (
                 <div className="flex items-start gap-3 p-4 rounded-xl"
                   style={{ background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.2)' }}>
                   <span className="text-red-400 flex-shrink-0 mt-0.5">⚠️</span>
@@ -428,20 +428,20 @@ export const Settings = () => {
                   { label:'Email de soporte',           field:'supportEmail' as const, placeholder:'soporte@workflowacademy.co' },
                 ] as const).map((f) => (
                   <div key={f.label} className={`flex flex-col gap-1.5 ${f.field === 'supportEmail' ? 'col-span-2' : ''}`}>
-                    <label className="text-sm font-medium" style={{ color: user?.role === 'admin' ? '#334155' : '#94a3b8' }}>
+                    <label className="text-sm font-medium" style={{ color: user?.role === 'ADMIN' ? '#334155' : '#94a3b8' }}>
                       {f.label}
                     </label>
                     <input
                       value={orgInfo[f.field]}
-                      onChange={(e) => user?.role === 'admin' && updateOrgField(f.field, e.target.value)}
+                      onChange={(e) => user?.role === 'ADMIN' && updateOrgField(f.field, e.target.value)}
                       placeholder={f.placeholder}
-                      disabled={user?.role !== 'admin'}
+                      disabled={user?.role !== 'ADMIN'}
                       className={inputCls()}
                       style={{
                         borderColor: '#e2e8f0',
-                        color: user?.role === 'admin' ? '#0f172a' : '#94a3b8',
-                        background: user?.role !== 'admin' ? '#f8fafc' : '#fff',
-                        cursor: user?.role !== 'admin' ? 'not-allowed' : 'text',
+                        color: user?.role === 'ADMIN' ? '#0f172a' : '#94a3b8',
+                        background: user?.role !== 'ADMIN' ? '#f8fafc' : '#fff',
+                        cursor: user?.role !== 'ADMIN' ? 'not-allowed' : 'text',
                       }}
                     />
                   </div>
@@ -466,10 +466,10 @@ export const Settings = () => {
               <div className="flex justify-end">
                 <button
                   onClick={onSaveOrganization}
-                  disabled={user?.role !== 'admin'}
+                  disabled={user?.role !== 'ADMIN'}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                   style={{ background:'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                  title={user?.role !== 'admin' ? 'Solo administradores pueden guardar cambios' : 'Guardar cambios'}>
+                  title={user?.role !== 'ADMIN' ? 'Solo administradores pueden guardar cambios' : 'Guardar cambios'}>
                   <Save size={15} /> Guardar organización
                 </button>
               </div>

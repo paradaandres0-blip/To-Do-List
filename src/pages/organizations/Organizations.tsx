@@ -1,118 +1,162 @@
-import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
-import { CENTERS, getGroupsByCenter, getStudentsByCenter, addCenter, updateCenter, removeCenter, groupLimitForPlan, canAddGroupToCenter, deactivateCenter, activateCenter } from '../../services/sharedMockDb';
+import { createCenterRequest, deleteCenterRequest, getCentersRequest, updateCenterRequest } from '../../services/centerService';
+import { getGroupsRequest } from '../../services/groupService';
+import { getStudentsRequest } from '../../services/studentService';
+import type { Center } from '../../types/center.types';
+import type { Group } from '../../types/group.types';
+import type { Student } from '../../types/student.types';
 
-// Genera un id único sin usar Math.random (evita impureza en render)
-const generateId = () => crypto.randomUUID();
-
-interface Organization {
-  id: string;
-  name: string;
-  website: string;
-  groups: number;
-  students: number;
-  plan: 'Enterprise' | 'Pro' | 'Básico';
-  active: boolean;
-  assignedGroups: string[];
-}
-
-// Derivar organizaciones desde sharedMockDb
-
-const mapOrgs = () => CENTERS.map((c) => ({
-  id: c.id,
-  name: c.name,
-  website: c.website,
-  groups: getGroupsByCenter(c.id).length,
-  students: getStudentsByCenter(c.id).length,
-  plan: c.plan,
-  active: c.active,
-  assignedGroups: getGroupsByCenter(c.id).map((g) => g.name),
-} as Organization));
-
-const planStyle: Record<Organization['plan'], string> = {
+const planStyle: Record<Center['plan'], string> = {
   Enterprise: 'bg-purple-50 text-purple-700 border-purple-200',
   Pro: 'bg-blue-50 text-blue-700 border-blue-200',
   Básico: 'bg-slate-50 text-slate-500 border-slate-200',
 };
 
-interface OrgForm { name: string; website: string; plan: Organization['plan']; }
+const groupLimitForPlan = (plan: Center['plan']): number => {
+  if (plan === 'Básico') return 2;
+  if (plan === 'Pro') return 6;
+  return Number.MAX_SAFE_INTEGER;
+};
+
+interface Organization extends Center {
+  groups: number;
+  students: number;
+  assignedGroups: string[];
+}
+
+interface OrgForm { name: string; website: string; plan: Center['plan']; }
 
 export const Organizations = () => {
-  const derived = useMemo(() => mapOrgs(), []);
-  const [orgs, setOrgs] = useState<Organization[]>(derived);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [editingOrg, setEditingOrg] = useState<Center | null>(null);
   const [detailOrg, setDetailOrg] = useState<Organization | null>(null);
   const [actionTarget, setActionTarget] = useState<{ id: string; type: 'deactivate' | 'delete' } | null>(null);
   const [adminPassword, setAdminPassword] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrgForm>();
 
-  const filtered = orgs.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
-    o.website.toLowerCase().includes(search.toLowerCase())
-  );
+  const orgs = useMemo<Organization[]>(() => {
+    return (centers ?? []).map((center) => {
+      const assignedGroups = (groups ?? []).filter((group) => group.centerId === center.id).map((group) => group.name);
+      const studentCount = (students ?? []).filter((student) => assignedGroups.includes(student.group)).length;
+      return {
+        ...center,
+        groups: assignedGroups.length,
+        students: studentCount,
+        assignedGroups,
+      };
+    });
+  }, [centers, groups, students]);
 
-  const refresh = () => setOrgs(CENTERS.map((c) => ({
-    id: c.id,
-    name: c.name,
-    website: c.website,
-    groups: getGroupsByCenter(c.id).length,
-    students: getStudentsByCenter(c.id).length,
-    plan: c.plan,
-    active: c.active,
-    assignedGroups: getGroupsByCenter(c.id).map((g) => g.name),
-  })));
+  const filtered = useMemo(() => orgs.filter((org) =>
+    org.name.toLowerCase().includes(search.toLowerCase()) ||
+    org.website.toLowerCase().includes(search.toLowerCase()),
+  ), [orgs, search]);
 
-  const onSubmit = (data: OrgForm) => {
-    if (editingOrg) {
-      updateCenter(editingOrg.id, { name: data.name, website: data.website, plan: data.plan });
-    } else {
-      addCenter({ id: generateId(), name: data.name, website: data.website, plan: data.plan, active: true });
+  const loadData = async () => {
+    try {
+      const [centersResponse, groupsResponse, studentsResponse] = await Promise.all([
+        getCentersRequest(),
+        getGroupsRequest(),
+        getStudentsRequest(1, 1000),
+      ]);
+
+      setCenters(centersResponse ?? []);
+      setGroups(groupsResponse ?? []);
+
+      const studentData = Array.isArray(studentsResponse)
+        ? studentsResponse
+        : studentsResponse?.data ?? [];
+      setStudents(studentData);
+    } catch (error) {
+      console.error('Error cargando datos de centros, grupos o alumnos:', error);
     }
-    refresh();
-    setIsOpen(false);
-    setEditingOrg(null);
-    reset();
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const refresh = async () => {
+    await loadData();
+  };
+
+  const onSubmit = async (data: OrgForm) => {
+    try {
+      if (editingOrg) {
+        await updateCenterRequest(editingOrg.id, { name: data.name, website: data.website, plan: data.plan });
+      } else {
+        await createCenterRequest({ name: data.name, website: data.website, plan: data.plan, active: true });
+      }
+      await refresh();
+      setIsOpen(false);
+      setEditingOrg(null);
+      reset();
+    } catch (error) {
+      console.error('Error guardando centro:', error);
+      alert('No se pudo guardar el centro. Intenta de nuevo.');
+    }
   };
 
   const openCreate = () => { setEditingOrg(null); reset({ plan: 'Básico' }); setIsOpen(true); };
-  const openEdit = (org: Organization) => { setEditingOrg(org); reset({ name: org.name, website: org.website, plan: org.plan }); setIsOpen(true); };
-  const openDetails = (org: Organization) => setDetailOrg(org);
-  const toggleActive = (id: string) => {
-    const center = CENTERS.find((c) => c.id === id);
-    if (!center) return;
-    if (center.active) {
-      setActionTarget({ id, type: 'deactivate' });
-      return;
-    }
-    activateCenter(id);
-    refresh();
+  const openEdit = (org: Organization) => {
+    setEditingOrg(org);
+    reset({ name: org.name, website: org.website, plan: org.plan });
+    setIsOpen(true);
   };
 
-  const confirmAction = () => {
-    if (!actionTarget) return;
-    const center = CENTERS.find((c) => c.id === actionTarget.id);
-    if (!center) return;
+  const openDetails = (org: Organization) => setDetailOrg(org);
 
-    if (actionTarget.type === 'deactivate') {
-      deactivateCenter(actionTarget.id);
-      refresh();
-    } else if (actionTarget.type === 'delete') {
-      if (adminPassword !== '123456') {
-        alert('La contraseña de administrador no es correcta.');
-        return;
+  const toggleActive = async (id: string) => {
+    const center = centers.find((c) => c.id === id);
+    if (!center) return;
+    try {
+      await updateCenterRequest(id, { active: !center.active });
+      await refresh();
+      if (detailOrg?.id === id) {
+        setDetailOrg({ ...detailOrg, active: !detailOrg.active });
       }
-      removeCenter(actionTarget.id);
-      refresh();
-      if (detailOrg?.id === actionTarget.id) setDetailOrg(null);
+    } catch (error) {
+      console.error('Error actualizando estado del centro:', error);
+      alert('No se pudo actualizar el estado del centro.');
+    }
+  };
+
+  const canAddGroupToCenter = (centerId: string) => {
+    const center = centers.find((c) => c.id === centerId);
+    if (!center) return false;
+    return groups.filter((group) => group.centerId === centerId).length < groupLimitForPlan(center.plan);
+  };
+
+  const confirmAction = async () => {
+    if (!actionTarget) return;
+    if (actionTarget.type === 'delete' && adminPassword !== '123456') {
+      alert('La contraseña de administrador no es correcta.');
+      return;
     }
 
-    setActionTarget(null);
-    setAdminPassword('');
+    try {
+      if (actionTarget.type === 'delete') {
+        await deleteCenterRequest(actionTarget.id);
+        if (detailOrg?.id === actionTarget.id) setDetailOrg(null);
+      } else {
+        await updateCenterRequest(actionTarget.id, { active: false });
+      }
+      await refresh();
+    } catch (error) {
+      console.error('Error ejecutando acción de centro:', error);
+      alert('No se pudo completar la acción.');
+    } finally {
+      setActionTarget(null);
+      setAdminPassword('');
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -121,7 +165,6 @@ export const Organizations = () => {
 
   return (
     <div className="w-full space-y-6">
-      {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2" style={{ color: '#0f172a' }}>
@@ -141,13 +184,12 @@ export const Organizations = () => {
         </button>
       </div>
 
-      {/* Stats rápidas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Centros', value: orgs.length,                              color: '#7c3aed' },
-          { label: 'Activos',       value: orgs.filter((o) => o.active).length,      color: '#059669' },
-          { label: 'Total Grupos',  value: orgs.reduce((a, o) => a + o.groups, 0),   color: '#2563eb' },
-          { label: 'Alumnos',       value: orgs.reduce((a, o) => a + o.students, 0), color: '#d97706' },
+          { label: 'Total Centros', value: orgs.length, color: '#7c3aed' },
+          { label: 'Activos', value: orgs.filter((o) => o.active).length, color: '#059669' },
+          { label: 'Total Grupos', value: orgs.reduce((a, o) => a + o.groups, 0), color: '#2563eb' },
+          { label: 'Alumnos', value: orgs.reduce((a, o) => a + o.students, 0), color: '#d97706' },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-4 text-center"
             style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -157,7 +199,6 @@ export const Organizations = () => {
         ))}
       </div>
 
-      {/* Buscador */}
       <div className="flex items-center gap-3 p-4 rounded-2xl"
         style={{ background: '#fff', border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div className="relative flex-1">
@@ -170,7 +211,6 @@ export const Organizations = () => {
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="rounded-2xl overflow-hidden bg-white"
         style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <table className="w-full text-sm">
@@ -186,7 +226,6 @@ export const Organizations = () => {
             {filtered.map((org, i) => (
               <tr key={org.id} className="hover:bg-slate-50 transition-colors"
                 style={{ borderBottom: i < filtered.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
@@ -201,25 +240,21 @@ export const Organizations = () => {
                     </div>
                   </div>
                 </td>
-
                 <td className="px-5 py-4">
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${planStyle[org.plan]}`}>
                     {org.plan}
                   </span>
                 </td>
-
                 <td className="px-5 py-4">
                   <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#475569' }}>
                     <BookOpen size={13} style={{ color: '#94a3b8' }} /> {org.groups}
                   </span>
                 </td>
-
                 <td className="px-5 py-4">
                   <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#475569' }}>
                     <Users size={13} style={{ color: '#94a3b8' }} /> {org.students}
                   </span>
                 </td>
-
                 <td className="px-5 py-4">
                   <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
                     org.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'
@@ -227,7 +262,6 @@ export const Organizations = () => {
                     {org.active ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
-
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -274,12 +308,11 @@ export const Organizations = () => {
         )}
       </div>
 
-      {/* Modal */}
       <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingOrg(null); reset(); }} title={editingOrg ? 'Editar Centro' : 'Nuevo Centro'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {([
-            { name: 'name'    as const, label: 'Nombre',    placeholder: 'Ej. Centro FitLife' },
-            { name: 'website' as const, label: 'Sitio web', placeholder: 'www.ejemplo.com'    },
+            { name: 'name' as const, label: 'Nombre', placeholder: 'Ej. Centro FitLife' },
+            { name: 'website' as const, label: 'Sitio web', placeholder: 'www.ejemplo.com' },
           ] as const).map((f) => (
             <div key={f.name} className="flex flex-col gap-1.5">
               <label className="text-sm font-medium" style={{ color: '#334155' }}>{f.label}</label>
@@ -356,7 +389,6 @@ export const Organizations = () => {
                   onClick={() => {
                     if (detailOrg) {
                       toggleActive(detailOrg.id);
-                      setDetailOrg({ ...detailOrg, active: !detailOrg.active });
                     }
                   }}
                   className={`w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all ${

@@ -7,6 +7,5 @@ export const teacherSchema = z.object({
   email: z.string().trim().min(1, 'El correo electrónico es obligatorio').email('Ingresa un correo electrónico válido'),
   phone: z.string().trim().min(7, 'El teléfono debe tener al menos 7 caracteres'),
   city: z.string().trim().min(2, 'La ciudad debe tener al menos 2 caracteres'),
-  specialties: z.array(z.string()).min(1, 'Selecciona al menos una especialidad'),
   status: teacherStatusSchema,
 });

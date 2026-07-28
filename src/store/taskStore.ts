@@ -22,8 +22,8 @@ const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
   loadTasks: async () => {
     try {
-      const response = await getTasksRequest();
-      set({ tasks: response.data, error: null });
+      const tasks = await getTasksRequest();
+      set({ tasks, error: null });
     } catch (err) {
       const message = getErrorMessage(err, 'Error al cargar las tareas');
       set({ error: message });

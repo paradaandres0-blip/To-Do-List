@@ -49,7 +49,7 @@ const router = createBrowserRouter([
     children: [
       // ── Admin ──
       {
-        element: <RoleGate allow={['admin']} />,
+        element: <RoleGate allow={['ADMIN']} />,
         children: [
           {
             path: '/',
@@ -75,7 +75,7 @@ const router = createBrowserRouter([
 
       // ── Docente (instructor) ──
       {
-        element: <RoleGate allow={['instructor']} />,
+        element: <RoleGate allow={['INSTRUCTOR']} />,
         children: [
           {
             path: '/docente',
@@ -90,7 +90,7 @@ const router = createBrowserRouter([
 
       // ── Estudiante ──
       {
-        element: <RoleGate allow={['student']} />,
+        element: <RoleGate allow={['STUDENT']} />,
         children: [
           {
             path: '/estudiante',

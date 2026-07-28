@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   GraduationCap, Plus, Search, Pencil, Trash2, Eye,
@@ -11,7 +11,6 @@ import { Input } from '../../components/common/Input/Input';
 import { Modal } from '../../components/common/Modal/Modal';
 import { Pagination } from '../../components/common/Pagination/Pagination';
 import type { Teacher, TeacherFormValues, TeacherStatus } from '../../types/teacher.types';
-import { TEACHER_SPECIALTY_OPTIONS } from '../../types/teacher.types';
 import {
   getTeachersRequest,
   createTeacherRequest,
@@ -51,7 +50,6 @@ export const Teachers = () => {
     register,
     handleSubmit,
     reset,
-    control,
     formState: { errors },
   } = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
@@ -69,9 +67,10 @@ export const Teachers = () => {
     const load = async () => {
       try {
         const response = await getTeachersRequest();
-        setTeachers(response.data);
+        setTeachers(response?.data ?? []);
       } catch (err) {
         console.error('Error al cargar docentes:', err);
+        setTeachers([]);
       } finally {
         setIsLoading(false);
       }
@@ -86,8 +85,7 @@ export const Teachers = () => {
         !q ||
         t.name.toLowerCase().includes(q) ||
         t.email.toLowerCase().includes(q) ||
-        t.city.toLowerCase().includes(q) ||
-        t.specialties.some((s) => s.toLowerCase().includes(q));
+        t.city.toLowerCase().includes(q);
       const matchStatus = filterStatus === 'Todos' || t.status === filterStatus;
       return matchSearch && matchStatus;
     });
@@ -140,7 +138,6 @@ export const Teachers = () => {
       email: teacher.email,
       phone: teacher.phone,
       city: teacher.city,
-      specialties: [...teacher.specialties],
       status: teacher.status,
     });
     setModalOpen(true);
@@ -162,7 +159,6 @@ export const Teachers = () => {
         email: data.email,
         phone: data.phone,
         city: data.city,
-        specialties: data.specialties,
         status: data.status,
       };
       if (editing) {
@@ -288,7 +284,7 @@ export const Teachers = () => {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                {['Docente', 'Contacto', 'Ciudad', 'Especialidades', 'Estado', 'Acciones'].map((h) => (
+                {['Docente', 'Contacto', 'Ciudad', 'Estado', 'Acciones'].map((h) => (
                   <th key={h} className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-wider"
                     style={{ color: '#94a3b8' }}>{h}</th>
                 ))}
@@ -325,22 +321,6 @@ export const Teachers = () => {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex flex-wrap gap-1 max-w-[220px]">
-                      {teacher.specialties.slice(0, 2).map((s) => (
-                        <span key={s} className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                          style={{ background: 'rgba(124,58,237,0.06)', color: '#7c3aed', borderColor: 'rgba(124,58,237,0.2)' }}>
-                          {s}
-                        </span>
-                      ))}
-                      {teacher.specialties.length > 2 && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{ color: '#94a3b8' }}>
-                          +{teacher.specialties.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLE[teacher.status]}`}>
                       {teacher.status}
                     </span>
@@ -349,8 +329,8 @@ export const Teachers = () => {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        title="Ver perfil"
-                        onClick={() => navigate(`/teachers/${teacher.id}`)}
+                        title="Ver tablero"
+                        onClick={() => navigate('/docente')}
                         className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
                       >
                         <Eye size={14} style={{ color: '#2563eb' }} />
@@ -461,58 +441,6 @@ export const Teachers = () => {
                 minLength: { value: 2, message: 'Mínimo 2 caracteres' },
               })}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-dark-gray mb-1.5">
-              Especialidades
-            </label>
-            <Controller
-              name="specialties"
-              control={control}
-              rules={{
-                validate: (v) =>
-                  (Array.isArray(v) && v.length > 0) ||
-                  'Selecciona al menos una especialidad',
-              }}
-              render={({ field }) => {
-                const selected = field.value ?? [];
-                return (
-                  <div className="flex flex-wrap gap-2">
-                    {TEACHER_SPECIALTY_OPTIONS.map((opt) => {
-                      const active = selected.includes(opt);
-                      return (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => {
-                            const next = active
-                              ? selected.filter((s) => s !== opt)
-                              : [...selected, opt];
-                            field.onChange(next);
-                          }}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer"
-                          style={
-                            active
-                              ? {
-                                  background: 'rgba(124,58,237,0.12)',
-                                  borderColor: 'rgba(124,58,237,0.4)',
-                                  color: '#7c3aed',
-                                }
-                              : { borderColor: '#e2e8f0', color: '#64748b' }
-                          }
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              }}
-            />
-            {errors.specialties && (
-              <p className="text-xs text-red-500 mt-1.5">{errors.specialties.message}</p>
-            )}
           </div>
 
           <div className="flex flex-col gap-1.5 max-w-xs">

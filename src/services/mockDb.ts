@@ -24,17 +24,17 @@ const initAccounts = () => {
         id: '1',
         name: 'Super Admin',
         email: 'admin@workflow.academy',
-        role: 'admin',
+        role: 'ADMIN',
       },
     },
     {
       email: 'docente@workflow.academy',
-      password: 'docente123',
+      password: '123456',
       user: {
         id: 'u-t1',
         name: 'Docente Demo',
         email: 'docente@workflow.academy',
-        role: 'instructor',
+        role: 'INSTRUCTOR',
         teacherId: 't1',
         phone: '+57 300 555 0101',
         city: 'Bogotá',
@@ -42,12 +42,12 @@ const initAccounts = () => {
     },
     {
       email: 'estudiante@workflow.academy',
-      password: 'estudiante123',
+      password: '123456',
       user: {
         id: 'u-s1',
         name: 'Estudiante Demo',
         email: 'estudiante@workflow.academy',
-        role: 'student',
+        role: 'STUDENT',
         phone: '+57 320 555 0303',
         city: 'Bogotá',
       },
@@ -72,7 +72,7 @@ export const findMockAccount = (email: string): MockAccount | undefined =>
 export const addMockAccount = (
   email: string,
   name: string,
-  role: 'instructor' | 'student',
+  role: 'INSTRUCTOR' | 'STUDENT',
   teacherId?: string,
 ): { password: string } => {
   // Generar contraseña aleatoria: 2 mayúsculas + 4 minúsculas + 2 números

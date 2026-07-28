@@ -148,24 +148,6 @@ export const TeacherProfile = () => {
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#94a3b8' }}>
-              Especialidades
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {teacher.specialties.map((s) => (
-                <span
-                  key={s}
-                  className="text-xs font-semibold px-3 py-1 rounded-full border"
-                  style={{
-                    background: 'rgba(124,58,237,0.08)',
-                    color: '#7c3aed',
-                    borderColor: 'rgba(124,58,237,0.2)',
-                  }}
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
             <p className="flex items-center gap-2 text-xs pt-2" style={{ color: '#94a3b8' }}>
               <Calendar size={13} />
               Creado {formatDate(teacher.createdAt)}

@@ -11,7 +11,7 @@ export const registerSchema = z.object({
 // Esquema de login
 export const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'La contraseña es requerida'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 });
 
 // Esquema de refresh token

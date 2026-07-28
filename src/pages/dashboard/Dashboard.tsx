@@ -59,7 +59,7 @@ export const Dashboard = () => {
   const getByTeacherId = useStudentStore((s) => s.getByTeacherId);
   const reportSessions = useReportStore((s) => s.sessions);
   const user = useAuthStore((s) => s.user);
-  const isInstructor = user?.role === 'instructor';
+  const isInstructor = user?.role === 'INSTRUCTOR';
 
   const [exportOpen, setExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -147,6 +147,9 @@ export const Dashboard = () => {
     [getByTeacherId, isInstructor, user],
   );
 
+  const formatNumberValue = (value: number | null | undefined) =>
+    typeof value === 'number' ? value.toLocaleString() : '—';
+
   const STATS = isInstructor ? [
     {
       title: 'Mis Alumnos',
@@ -177,25 +180,25 @@ export const Dashboard = () => {
   ] : [
     {
       title: 'Alumnos Activos',
-      value: isLoading ? '…' : metrics ? metrics.studentsActive.toLocaleString() : '—',
+      value: isLoading ? '…' : formatNumberValue(metrics?.studentsActive),
       trend: metrics?.trends.students ?? '+0%',
       icon: Users, from: '#7c3aed', to: '#2563eb',
     },
     {
       title: 'Programas Activos',
-      value: isLoading ? '…' : metrics ? metrics.programsActive.toLocaleString() : '—',
+      value: isLoading ? '…' : formatNumberValue(metrics?.programsActive),
       trend: metrics?.trends.programs ?? '+0%',
       icon: BookOpen, from: '#2563eb', to: '#0ea5e9',
     },
     {
       title: 'Sesiones Completadas',
-      value: isLoading ? '…' : metrics ? metrics.sessionsCompleted.toLocaleString() : '—',
+      value: isLoading ? '…' : formatNumberValue(metrics?.sessionsCompleted),
       trend: metrics?.trends.sessions ?? '+0%',
       icon: CheckCircle2, from: '#059669', to: '#10b981',
     },
     {
       title: 'Satisfacción',
-      value: isLoading ? '…' : metrics ? `${metrics.satisfaction}%` : '—',
+      value: isLoading ? '…' : (typeof metrics?.satisfaction === 'number' ? `${metrics.satisfaction}%` : '—'),
       trend: metrics?.trends.satisfaction ?? '+0%',
       icon: TrendingUp, from: '#d97706', to: '#f59e0b',
     },

@@ -6,17 +6,18 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import useAuthStore from '../../../store/authStore';
+import { normalizeRole } from '../../../utils/roleRouting';
 
 const NAV_ITEMS = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin'] },
-  { to: '/organizations', icon: Building2,        label: 'Centros',     roles: ['admin'] },
-  { to: '/groups',        icon: Users,            label: 'Grupos',      roles: ['admin'] },
-  { to: '/courses',       icon: BookOpen,         label: 'Programas',   roles: ['admin'] },
-  { to: '/modules',       icon: Layers,           label: 'Módulos',     roles: ['admin'] },
-  { to: '/students',      icon: Users,            label: 'Alumnos',     roles: ['admin'] },
-  { to: '/teachers',      icon: GraduationCap,    label: 'Docentes',    roles: ['admin'] },
-  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones',    roles: ['admin'] },
-  { to: '/reports',       icon: BarChart2,        label: 'Reportes',    roles: ['admin'] },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',   roles: ['ADMIN'] },
+  { to: '/organizations', icon: Building2,        label: 'Centros',     roles: ['ADMIN'] },
+  { to: '/groups',        icon: Users,            label: 'Grupos',      roles: ['ADMIN'] },
+  { to: '/courses',       icon: BookOpen,         label: 'Programas',   roles: ['ADMIN'] },
+  { to: '/modules',       icon: Layers,           label: 'Módulos',     roles: ['ADMIN'] },
+  { to: '/students',      icon: Users,            label: 'Alumnos',     roles: ['ADMIN'] },
+  { to: '/teachers',      icon: GraduationCap,    label: 'Docentes',    roles: ['ADMIN'] },
+  { to: '/tasks',         icon: ClipboardList,    label: 'Sesiones',    roles: ['ADMIN'] },
+  { to: '/reports',       icon: BarChart2,        label: 'Reportes',    roles: ['ADMIN'] },
 ];
 
 export default function Sidebar() {
@@ -50,7 +51,11 @@ export default function Sidebar() {
           Menú Principal
         </p>
 
-        {NAV_ITEMS.filter((item) => user && item.roles.includes(user.role)).map(({ to, icon: Icon, label }) => (
+        {NAV_ITEMS.filter((item) => {
+          if (!user) return false;
+          const normalizedRole = normalizeRole(user.role);
+          return normalizedRole ? item.roles.includes(normalizedRole) : false;
+        }).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

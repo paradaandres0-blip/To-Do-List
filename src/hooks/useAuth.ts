@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { getHomeForRole } from '../utils/roleRouting';
 
 /**
  * Hook centralizado de autenticación.
@@ -15,10 +16,7 @@ export const useAuth = () => {
       clearError();
       await login({ email, password });
       const role = useAuthStore.getState().user?.role;
-      // Docente → tablero Trello; estudiante → portal estudiante; admin → dashboard
-      if (role === 'instructor') navigate('/docente', { replace: true });
-      else if (role === 'student') navigate('/estudiante', { replace: true });
-      else navigate('/dashboard', { replace: true });
+      navigate(getHomeForRole(role), { replace: true });
     },
     [login, navigate, clearError]
   );

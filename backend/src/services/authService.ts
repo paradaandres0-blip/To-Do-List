@@ -75,6 +75,9 @@ export const register = async (email: string, password: string, name: string, ro
     },
   });
 
+  const teacher = await prisma.teacher.findUnique({ where: { userId: user.id } });
+  const student = await prisma.student.findUnique({ where: { userId: user.id } });
+
   // Generar tokens
   const payload: TokenPayload = {
     userId: user.id,
@@ -91,6 +94,8 @@ export const register = async (email: string, password: string, name: string, ro
       email: user.email,
       name: user.name,
       role: user.role,
+      teacherId: teacher?.id,
+      studentId: student?.id,
     },
     tokens: {
       accessToken,
@@ -117,6 +122,9 @@ export const login = async (email: string, password: string) => {
     throw new Error('Credenciales inválidas');
   }
 
+  const teacher = await prisma.teacher.findUnique({ where: { userId: user.id } });
+  const student = await prisma.student.findUnique({ where: { userId: user.id } });
+
   // Generar tokens
   const payload: TokenPayload = {
     userId: user.id,
@@ -133,6 +141,8 @@ export const login = async (email: string, password: string) => {
       email: user.email,
       name: user.name,
       role: user.role,
+      teacherId: teacher?.id,
+      studentId: student?.id,
     },
     tokens: {
       accessToken,
@@ -155,6 +165,9 @@ export const refreshToken = async (refreshToken: string) => {
       throw new Error('Usuario no encontrado');
     }
 
+    const teacher = await prisma.teacher.findUnique({ where: { userId: user.id } });
+    const student = await prisma.student.findUnique({ where: { userId: user.id } });
+
     // Generar nuevos tokens
     const newPayload: TokenPayload = {
       userId: user.id,
@@ -171,6 +184,8 @@ export const refreshToken = async (refreshToken: string) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        teacherId: teacher?.id,
+        studentId: student?.id,
       },
       tokens: {
         accessToken,

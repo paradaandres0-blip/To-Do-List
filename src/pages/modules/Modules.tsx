@@ -6,6 +6,9 @@ import { Modal } from '../../components/common/Modal/Modal';
 import { useForm } from 'react-hook-form';
 import type { Module } from '../../types/module.types';
 import type { Course } from '../../types/course.types';
+import type { Teacher } from '../../types/teacher.types';
+import type { Student } from '../../types/student.types';
+import type { Activity, ActivityStatus } from '../../types/activity.types';
 import {
   getModulesRequest,
   createModuleRequest,
@@ -13,7 +16,11 @@ import {
   deleteModuleRequest
 } from '../../services/moduleService';
 import { getCoursesRequest } from '../../services/courseService';
+import { getTeachersRequest } from '../../services/teacherService';
+import { getStudentsRequest } from '../../services/studentService';
 import useActivityStore from '../../store/activityStore';
+import useAuthStore from '../../store/authStore';
+import { ACTIVITY_STATUSES } from '../../types/activity.types';
 
 interface ModuleFormInputs {
   course: string;
@@ -25,14 +32,32 @@ interface ModuleFormInputs {
 export const Modules = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
+  const [activeModule, setActiveModule] = useState<Module | null>(null);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [activityForm, setActivityForm] = useState({
+    title: '',
+    description: '',
+    lesson: '',
+    studentId: '',
+    teacherId: '',
+    status: 'Pendiente' as ActivityStatus,
+  });
 
   const activities = useActivityStore((s) => s.activities);
   const loadActivities = useActivityStore((s) => s.loadActivities);
+  const createActivity = useActivityStore((s) => s.createActivity);
+  const updateActivity = useActivityStore((s) => s.updateActivity);
+  const deleteActivity = useActivityStore((s) => s.deleteActivity);
+  const user = useAuthStore((s) => s.user);
+  const canEditActivities = user?.role === 'ADMIN' || user?.role === 'INSTRUCTOR';
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ModuleFormInputs>({
     defaultValues: {
@@ -47,13 +72,18 @@ export const Modules = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [modulesData, coursesData] = await Promise.all([
+        const [modulesData, coursesData, teachersData, studentsResponse] = await Promise.all([
           getModulesRequest(),
           getCoursesRequest(),
-          loadActivities(),
+          getTeachersRequest(1, 1000),
+          getStudentsRequest(1, 1000),
         ]);
+        await loadActivities();
+
         setModules(modulesData);
         setCourses(coursesData);
+        setTeachers(teachersData.data);
+        setStudents(Array.isArray(studentsResponse) ? studentsResponse : studentsResponse.data);
       } catch (error) {
         console.error('Error al cargar datos:', error);
       } finally {
@@ -102,9 +132,91 @@ export const Modules = () => {
     return progressMap;
   }, [activities]);
 
-  const [activeModule, setActiveModule] = useState<Module | null>(null);
   const openModule = (mod: Module) => setActiveModule(mod);
   const closeModule = () => setActiveModule(null);
+
+  const mapStatusToProgress = (status: ActivityStatus): number => {
+    switch (status) {
+      case 'Aprobada': return 100;
+      case 'En revisión': return 75;
+      case 'En desarrollo': return 50;
+      default: return 0;
+    }
+  };
+
+  const openNewActivity = () => {
+    setEditingActivity(null);
+    setActivityForm({
+      title: '',
+      description: '',
+      lesson: '',
+      studentId: students[0]?.id ?? '',
+      teacherId: user?.teacherId ?? teachers[0]?.id ?? '',
+      status: 'Pendiente',
+    });
+    setActivityModalOpen(true);
+  };
+
+  const openEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+    setActivityForm({
+      title: activity.title,
+      description: activity.description,
+      lesson: activity.lesson ?? '',
+      studentId: activity.studentId ?? students[0]?.id ?? '',
+      teacherId: activity.teacherId ?? user?.teacherId ?? teachers[0]?.id ?? '',
+      status: activity.status,
+    });
+    setActivityModalOpen(true);
+  };
+
+  const handleActivitySubmit = async () => {
+    if (!activeModule) return;
+    if (!activityForm.title.trim() || !activityForm.studentId) {
+      alert('Debe completar el título y el estudiante asignado.');
+      return;
+    }
+
+    const payload = {
+      title: activityForm.title.trim(),
+      description: activityForm.description.trim(),
+      lesson: activityForm.lesson.trim(),
+      moduleId: activeModule.id,
+      courseId: activeModule.course,
+      studentId: activityForm.studentId,
+      teacherId: activityForm.teacherId,
+      status: activityForm.status,
+      progress: mapStatusToProgress(activityForm.status),
+    };
+
+    try {
+      if (editingActivity) {
+        await updateActivity(editingActivity.id, {
+          title: payload.title,
+          description: payload.description,
+          lesson: payload.lesson,
+          status: payload.status,
+          progress: payload.progress,
+        });
+      } else {
+        await createActivity(payload);
+      }
+      setActivityModalOpen(false);
+    } catch (error) {
+      console.error('Error guardando actividad:', error);
+      alert('No se pudo guardar la actividad. Intenta de nuevo.');
+    }
+  };
+
+  const handleDeleteActivity = async (id: string) => {
+    if (!window.confirm('¿Eliminar esta actividad?')) return;
+    try {
+      await deleteActivity(id);
+    } catch (error) {
+      console.error('Error eliminando actividad:', error);
+      alert('No se pudo eliminar la actividad.');
+    }
+  };
 
   const filtered = modules.filter(
     (m) =>
@@ -340,26 +452,156 @@ export const Modules = () => {
       <Modal isOpen={!!activeModule} onClose={closeModule} title={activeModule ? `Módulo: ${activeModule.title}` : ''}>
         {activeModule && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">Curso: {activeModule.course}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-600">Curso: {activeModule.course}</p>
+              </div>
+              {canEditActivities && (
+                <button
+                  onClick={openNewActivity}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+                >
+                  <Plus size={16} /> Agregar actividad
+                </button>
+              )}
+            </div>
             <div>
               <p className="text-sm font-semibold mb-2">Actividades</p>
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {activities.filter((a) => a.moduleId === activeModule.id).map((act) => (
-                  <li key={act.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium" style={{ color: '#0f172a' }}>{act.title}</p>
-                      <p className="text-xs text-slate-500">{act.lesson} • {act.status} • {act.progress}%</p>
+                  <li key={act.id} className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900 truncate">{act.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{act.lesson} • {act.status} • {act.progress}%</p>
+                        <p className="text-[11px] text-slate-400 mt-1">Alumno: {students.find((s) => s.id === act.studentId)?.name ?? 'No asignado'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        {canEditActivities && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openEditActivity(act)}
+                              className="p-2 rounded-lg hover:bg-slate-100"
+                              title="Editar actividad"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteActivity(act.id)}
+                              className="p-2 rounded-lg hover:bg-rose-50 text-rose-500"
+                              title="Eliminar actividad"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400">{new Date(act.createdAt).toLocaleDateString('es-CO')}</div>
+                    <div className="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
+                      <span>{new Date(act.createdAt).toLocaleDateString('es-CO')}</span>
+                      <span>{teachers.find((t) => t.id === act.teacherId)?.name ?? 'Sin docente'}</span>
+                    </div>
                   </li>
                 ))}
                 {activities.filter((a) => a.moduleId === activeModule.id).length === 0 && (
-                  <li className="p-3 rounded-xl bg-slate-50 text-slate-500">No hay actividades</li>
+                  <li className="rounded-2xl bg-slate-50 p-4 text-slate-500">No hay actividades</li>
                 )}
               </ul>
             </div>
           </div>
         )}
+      </Modal>
+      <Modal isOpen={activityModalOpen} onClose={() => setActivityModalOpen(false)} title={editingActivity ? 'Editar Actividad' : 'Crear Actividad'}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-800 mb-1">Título</label>
+            <input
+              value={activityForm.title}
+              onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+              placeholder="Ej. Rutina de resistencia"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-800 mb-1">Descripción</label>
+            <textarea
+              value={activityForm.description}
+              onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+              rows={4}
+              placeholder="Indicaciones para el estudiante"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1">Lección</label>
+              <input
+                value={activityForm.lesson}
+                onChange={(e) => setActivityForm({ ...activityForm, lesson: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                placeholder="Ej. Semana 3 - Fuerza básica"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1">Estado</label>
+              <select
+                value={activityForm.status}
+                onChange={(e) => setActivityForm({ ...activityForm, status: e.target.value as ActivityStatus })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+              >
+                {ACTIVITY_STATUSES.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1">Estudiante</label>
+              <select
+                value={activityForm.studentId}
+                onChange={(e) => setActivityForm({ ...activityForm, studentId: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+              >
+                <option value="">Selecciona un estudiante</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>{student.name} — {student.group}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1">Docente</label>
+              <select
+                value={activityForm.teacherId}
+                onChange={(e) => setActivityForm({ ...activityForm, teacherId: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+              >
+                <option value="">Selecciona un docente</option>
+                {teachers.map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setActivityModalOpen(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleActivitySubmit}
+              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+            >
+              Guardar actividad
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* Modal Crear/Editar Módulo */}

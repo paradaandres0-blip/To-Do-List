@@ -5,7 +5,7 @@ import useActivityStore from '../../store/activityStore';
 import useStudentStore from '../../store/studentStore';
 import { getModulesRequest } from '../../services/moduleService';
 import { getCoursesRequest } from '../../services/courseService';
-import { GROUPS, getCoursesForGroup } from '../../services/sharedMockDb';
+import { getGroupsRequest } from '../../services/groupService';
 import type { Module } from '../../types/module.types';
 import type { Course } from '../../types/course.types';
 import type { ActivityStatus } from '../../types/activity.types';
@@ -32,6 +32,7 @@ export const StudentBoard = () => {
 
   const [modules, setModules] = useState<Module[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string; programs?: Array<{ program: string }> }>>([]);
 
   // Encontrar el estudiante actual por email
   const currentStudent = useMemo(() => {
@@ -43,12 +44,14 @@ export const StudentBoard = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [modulesData, coursesData] = await Promise.all([
+        const [modulesData, coursesData, groupsData] = await Promise.all([
           getModulesRequest(),
           getCoursesRequest(),
+          getGroupsRequest(),
         ]);
         setModules(modulesData);
         setCourses(coursesData);
+        setGroups(groupsData ?? []);
       } catch (err) {
         console.error('Error al cargar datos:', err);
       }
@@ -62,11 +65,11 @@ export const StudentBoard = () => {
   // Cursos del estudiante (a través de su grupo)
   const myCourses = useMemo(() => {
     if (!currentStudent) return [];
-    const group = GROUPS.find((g) => g.name === currentStudent.group);
+    const group = groups.find((g) => g.name === currentStudent.group);
     if (!group) return [];
-    const courseIds = getCoursesForGroup(group.id);
-    return courses.filter((c) => courseIds.includes(c.id));
-  }, [courses, currentStudent]);
+    const programs = (group.programs ?? []).map((assignment) => assignment.program);
+    return courses.filter((course) => programs.includes(course.title));
+  }, [courses, currentStudent, groups]);
 
   // Módulos publicados de mis cursos
   const myModules = useMemo(() => {

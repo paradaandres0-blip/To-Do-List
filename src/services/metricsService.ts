@@ -45,6 +45,6 @@ export const getDashboardMetricsRequest = async (): Promise<DashboardMetrics> =>
   }
 
   // ── Modo real: GET /metrics/dashboard ──
-  const { data } = await api.get<DashboardMetrics>('/metrics/dashboard');
-  return data;
+  const { data } = await api.get<{ success: boolean; data: DashboardMetrics }>('/metrics/dashboard');
+  return data.data;
 };

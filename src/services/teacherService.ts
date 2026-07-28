@@ -9,7 +9,7 @@ import { teacherSchema } from '../schemas/teacher.schema';
 import { addMockAccount } from './mockDb';
 
 // ── Helper: extraer data de ApiResponse ──
-const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+const extractData = <T>(response: { data: unknown }): T => {
   const d = response.data;
   if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
     return (d as ApiResponse<T>).data;
@@ -79,8 +79,19 @@ export const getTeachersRequest = async (page = 1, pageSize = 10): Promise<Pagin
     const data = MOCK_TEACHERS.slice(start, start + pageSize).map((t) => ({ ...t }));
     return { data, total, page, pageSize, totalPages };
   }
-  const response = await api.get<PaginatedResponse<Teacher>>('/teachers', { params: { page, pageSize } });
-  return extractData(response);
+
+  const response = await api.get<ApiResponse<Teacher[]> | PaginatedResponse<Teacher>>('/teachers', { params: { page, pageSize } });
+  const result = extractData<PaginatedResponse<Teacher> | Teacher[]>(response);
+
+  if (Array.isArray(result)) {
+    const total = result.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize;
+    const data = result.slice(start, start + pageSize);
+    return { data, total, page, pageSize, totalPages };
+  }
+
+  return result as PaginatedResponse<Teacher>;
 };
 
 // ── GET /teachers/:id ──
@@ -122,7 +133,7 @@ export const createTeacherRequest = async (
     MOCK_TEACHERS = [created, ...MOCK_TEACHERS];
 
     // Crear también cuenta de login para el docente
-    addMockAccount(created.email, created.name, 'instructor', id);
+    addMockAccount(created.email, created.name, 'INSTRUCTOR', id);
 
     return created;
   }

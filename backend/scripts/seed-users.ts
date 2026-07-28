@@ -45,9 +45,10 @@ async function main() {
   });
   console.log('✅ Estudiante creado:', student.email);
 
-  // Crear profesor asociado para el instructor
-  const teacher = await prisma.teacher.create({
-    data: {
+  // Crear profesor asociado para el instructor (vinculado al userId)
+  const teacher = await prisma.teacher.upsert({
+    where: { userId: instructor.id },
+    update: {
       name: 'Docente Demo',
       email: 'docente@workflow.academy',
       phone: '+57 300 555 0101',
@@ -55,12 +56,32 @@ async function main() {
       specialties: 'Nutrición Deportiva,Entrenamiento Funcional',
       status: 'ACTIVO',
     },
+    create: {
+      name: 'Docente Demo',
+      email: 'docente@workflow.academy',
+      phone: '+57 300 555 0101',
+      city: 'Medellín',
+      specialties: 'Nutrición Deportiva,Entrenamiento Funcional',
+      status: 'ACTIVO',
+      userId: instructor.id,
+    },
   });
   console.log('✅ Teacher profile creado:', teacher.email);
 
   // Crear perfil de estudiante para el estudiante
-  await prisma.student.create({
-    data: {
+  await prisma.student.upsert({
+    where: { userId: student.id },
+    update: {
+      name: 'Estudiante Demo',
+      email: 'estudiante@workflow.academy',
+      phone: '+57 301 111 2222',
+      program: 'Entrenamiento Funcional',
+      group: 'Cohorte Fitness 2026',
+      status: 'ACTIVO',
+      active: true,
+      teacherId: teacher.id,
+    },
+    create: {
       name: 'Estudiante Demo',
       email: 'estudiante@workflow.academy',
       phone: '+57 301 111 2222',

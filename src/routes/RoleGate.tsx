@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import type { AuthUser } from '../services/authService';
+import { getHomeForRole, normalizeRole } from '../utils/roleRouting';
 
 type Role = AuthUser['role'];
 
@@ -8,17 +9,12 @@ interface RoleGateProps {
   allow: Role[];
 }
 
-const homeForRole = (role: Role) => {
-  if (role === 'instructor') return '/docente';
-  if (role === 'admin') return '/dashboard';
-  if (role === 'student') return '/dashboard';
-  return '/auth/login';
-};
+const homeForRole = (role: Role) => getHomeForRole(role);
 
 /** Protege rutas por rol (admin vs instructor/docente). */
 export const RoleGate = ({ allow }: RoleGateProps) => {
   const user = useAuthStore((s) => s.user);
-  const role = user?.role;
+  const role = normalizeRole(user?.role) as Role | null;
 
   if (!role) {
     return <Navigate to="/auth/login" replace />;

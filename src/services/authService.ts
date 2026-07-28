@@ -1,6 +1,6 @@
 import api from './api';
 import { STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
-import { findMockAccount } from './mockDb';
+import { normalizeRole } from '../utils/roleRouting';
 
 // ── Tipos ──
 export interface LoginPayload {
@@ -12,12 +12,25 @@ export interface AuthUser {
   id:      string;
   name:    string;
   email:   string;
-  role:    'admin' | 'instructor' | 'student';
+  role:    'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
   avatar?: string;
   phone?:  string;
   city?:   string;
   /** Solo docentes — enlaza con teachers.id (portal /docente) */
   teacherId?: string;
+  /** Solo estudiantes — enlaza con students.id */
+  studentId?: string;
+}
+
+interface BackendAuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  teacherId?: string;
+  studentId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginResponse {
@@ -31,6 +44,14 @@ export interface RefreshResponse {
 }
 
 const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
+
+const normalizeAuthUser = (user: BackendAuthUser): AuthUser => {
+  const role = normalizeRole(user.role) ?? 'STUDENT';
+  return {
+    ...user,
+    role,
+  };
+};
 
 const readPersistedUser = (): AuthUser | null => {
   try {
@@ -47,36 +68,17 @@ const readPersistedUser = (): AuthUser | null => {
 // POST /auth/login
 // ────────────────────────────────────────────
 export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse> => {
-  // ── Modo mock: simula respuesta del backend ──
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
-    const email = payload.email.trim().toLowerCase();
-    const password = payload.password;
-
-    const account = findMockAccount(email);
-
-    if (!account) {
-      throw { response: { data: { message: 'Credenciales inválidas.' } } };
-    }
-
-    if (account.password !== password) {
-      throw { response: { data: { message: 'Contraseña incorrecta.' } } };
-    }
-
-    const rolePrefix = account.user.role === 'admin' ? 'admin'
-      : account.user.role === 'instructor' ? 'instructor'
-      : 'student';
-
-    return {
-      token: `mock-jwt-${rolePrefix}-${Date.now()}`,
-      user: { ...account.user },
-      refreshToken: `mock-refresh-${rolePrefix}-${Date.now()}`,
-    };
+    throw { response: { data: { message: 'El modo mock está desactivado para este flujo. Usa el backend real.' } } };
   }
 
-  // ── Modo real: llama al backend ──
-  const { data } = await api.post<LoginResponse>('/auth/login', payload);
-  return data;
+  const { data } = await api.post<{ token: string; refreshToken?: string; user: BackendAuthUser }>('/auth/login', payload);
+  return {
+    token: data.token,
+    refreshToken: data.refreshToken,
+    user: normalizeAuthUser(data.user),
+  };
 };
 
 export const verifyPasswordRequest = async (email: string, password: string): Promise<boolean> => {
@@ -107,11 +109,15 @@ export const getMeRequest = async (): Promise<AuthUser> => {
   if (IS_MOCK) {
     const persisted = readPersistedUser();
     if (persisted) return persisted;
-    const admin = findMockAccount('admin@workflow.academy');
-    return { ...admin!.user };
+    return {
+      id: 'demo-admin',
+      name: 'Administrador',
+      email: 'admin@workflow.academy',
+      role: 'ADMIN',
+    };
   }
-  const { data } = await api.get<AuthUser>('/auth/me');
-  return data;
+  const { data } = await api.get<{ success: boolean; data: BackendAuthUser }>('/auth/me');
+  return normalizeAuthUser(data.data);
 };
 
 // ────────────────────────────────────────────
@@ -133,8 +139,14 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
 export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
   if (IS_MOCK) {
     await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    const base = readPersistedUser() ?? findMockAccount('admin@workflow.academy')!.user;
-    return { ...base, ...payload };
+    const base = readPersistedUser();
+    return base ? { ...base, ...payload } : {
+      id: 'demo-admin',
+      name: 'Administrador',
+      email: 'admin@workflow.academy',
+      role: 'ADMIN',
+      ...payload,
+    };
   }
 
   const { data } = await api.patch<AuthUser>('/users/me', payload);

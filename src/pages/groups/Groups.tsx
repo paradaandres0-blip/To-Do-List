@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Users, Pencil, MoreVertical, BookOpen, Trash2, AlertTriangle } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
-import { GROUPS as SHARED_GROUPS, CENTERS, getStudentsByGroup, addGroup, updateGroup, removeGroup, canAddGroupToCenter } from '../../services/sharedMockDb';
+import { getCentersRequest } from '../../services/centerService';
+import { createGroupRequest, deleteGroupRequest, getGroupsRequest, updateGroupRequest } from '../../services/groupService';
 import { getTeachersRequest } from '../../services/teacherService';
+import { getStudentsRequest } from '../../services/studentService';
 import type { Teacher } from '../../types/teacher.types';
+import type { Center } from '../../types/center.types';
+import type { Group } from '../../types/group.types';
 
-// Genera un id único sin usar Math.random (evita impureza en render)
-const generateId = () => crypto.randomUUID();
+const programOptions = ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness', 'Pérdida de Peso'];
 
-// Grupos provistos por sharedMockDb
 interface GroupProgramAssignment {
   program: string;
   mentor: string;
@@ -29,23 +31,10 @@ interface GroupView {
 }
 
 const statusStyle: Record<string, string> = {
-  'En curso':      'bg-blue-50   text-blue-700   border-blue-200',
+  'En curso': 'bg-blue-50 text-blue-700 border-blue-200',
   'Inscripciones': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Finalizado':    'bg-slate-100  text-slate-500   border-slate-200',
+  'Finalizado': 'bg-slate-100 text-slate-500 border-slate-200',
 };
-
-interface Group {
-  id: string;
-  name: string;
-  org: string;
-  mentor: string;
-  centerId: string;
-  students: number;
-  status: 'En curso' | 'Inscripciones' | 'Finalizado';
-  active: boolean;
-  programs: GroupProgramAssignment[];
-  members: string[];
-}
 
 interface GroupProgramAssignmentForm {
   program: string;
@@ -55,32 +44,20 @@ interface GroupProgramAssignmentForm {
 interface NewGroupForm {
   name: string;
   centerId: string;
-  active: boolean;
+  active: boolean | 'true' | 'false';
   programs: GroupProgramAssignmentForm[];
 }
 
 export const Groups = () => {
-  const programOptions = ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness', 'Pérdida de Peso'];
-
-  const mapped = useMemo<GroupView[]>(() => SHARED_GROUPS.map((g) => ({
-    id: g.id,
-    name: g.name,
-    org: CENTERS.find((c) => c.id === g.centerId)?.name ?? 'Sin centro',
-    centerId: g.centerId,
-    mentor: g.programs?.[0]?.mentor ?? g.mentor,
-    students: getStudentsByGroup(g.name).length,
-    status: g.status,
-    active: g.active,
-    programs: g.programs ?? [{ program: g.program, mentor: g.mentor }],
-    members: getStudentsByGroup(g.name).map((s) => s.name),
-  })), []);
-
-  const [groups, setGroups] = useState<GroupView[]>(mapped);
-  const [search, setSearch] = useState('');
-  const [isOpen, setIsOpen]       = useState(false);
-  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
-  const [detailGroup, setDetailGroup] = useState<Group | null>(null);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [students, setStudents] = useState<{ name: string; group: string }[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [detailGroup, setDetailGroup] = useState<GroupView | null>(null);
+
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm<NewGroupForm>({
     defaultValues: {
       name: '',
@@ -91,24 +68,76 @@ export const Groups = () => {
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'programs' });
 
-  const filtered = groups.filter(
-    (g) =>
-      g.name.toLowerCase().includes(search.toLowerCase()) ||
-      g.org.toLowerCase().includes(search.toLowerCase())
-  );
+  const groupViews = useMemo<GroupView[]>(() => {
+    return (groups ?? []).map((group) => {
+      const center = (centers ?? []).find((centerItem) => centerItem.id === group.centerId);
+      const members = (students ?? []).filter((student) => student.group === group.name).map((student) => student.name);
+      return {
+        id: group.id,
+        name: group.name,
+        org: center?.name ?? 'Sin centro',
+        centerId: group.centerId,
+        mentor: group.programs?.[0]?.mentor ?? '',
+        students: members.length,
+        status: group.status,
+        active: group.active,
+        programs: group.programs ?? [],
+        members,
+      };
+    });
+  }, [groups, centers, students]);
 
-  const refresh = () => setGroups(SHARED_GROUPS.map((g) => ({
-    id: g.id,
-    name: g.name,
-    org: CENTERS.find((c) => c.id === g.centerId)?.name ?? 'Sin centro',
-    centerId: g.centerId,
-    mentor: g.programs?.[0]?.mentor ?? g.mentor,
-    students: getStudentsByGroup(g.name).length,
-    status: g.status,
-    active: g.active,
-    programs: g.programs ?? [{ program: g.program, mentor: g.mentor }],
-    members: getStudentsByGroup(g.name).map((s) => s.name),
-  })));
+  const filtered = useMemo(() => groupViews.filter((group) =>
+    group.name.toLowerCase().includes(search.toLowerCase()) ||
+    group.org.toLowerCase().includes(search.toLowerCase()),
+  ), [groupViews, search]);
+
+  const loadData = async () => {
+    try {
+      const [centersResponse, groupsResponse, studentsResponse] = await Promise.all([
+        getCentersRequest(),
+        getGroupsRequest(),
+        getStudentsRequest(1, 1000),
+      ]);
+
+      setCenters(centersResponse ?? []);
+      setGroups(groupsResponse ?? []);
+      const studentData = Array.isArray(studentsResponse)
+        ? studentsResponse
+        : studentsResponse?.data ?? [];
+      setStudents(studentData.map((student) => ({ name: student.name, group: student.group })));
+    } catch (error) {
+      console.error('Error cargando datos de grupos:', error);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  useEffect(() => {
+    void getTeachersRequest(1, 1000)
+      .then((response) => setTeachers(response?.data ?? []))
+      .catch((error) => {
+        console.error('Error cargando docentes:', error);
+        setTeachers([]);
+      });
+  }, []);
+
+  const refresh = async () => {
+    await loadData();
+  };
+
+  const normalizeActive = (value: boolean | 'true' | 'false'): boolean => value === true || value === 'true';
+
+  const canAddGroupToCenter = (centerId: string) => {
+    const center = centers.find((item) => item.id === centerId);
+    if (!center) return false;
+    const currentCount = groups.filter((group) => group.centerId === centerId).length;
+    if (center.plan === 'Básico') return currentCount < 2;
+    if (center.plan === 'Pro') return currentCount < 6;
+    return true;
+  };
 
   const resetGroupForm = () => reset({
     name: '',
@@ -117,66 +146,58 @@ export const Groups = () => {
     programs: [{ program: '', mentor: '' }],
   });
 
-  const onSubmit = (data: NewGroupForm) => {
+  const handleSubmitGroup = async (data: NewGroupForm) => {
     const validPrograms = data.programs.filter((item) => item.program && item.mentor);
     if (validPrograms.length === 0) {
       alert('Agrega al menos un programa y selecciona su mentor.');
       return;
     }
 
-    const selectedCenter = CENTERS.find((c) => c.id === data.centerId);
-    const currentGroupCount = SHARED_GROUPS.filter((g) => g.centerId === data.centerId).length;
+    const selectedCenter = centers.find((center) => center.id === data.centerId);
     if (selectedCenter && !selectedCenter.active) {
       alert('No puedes crear grupos en un centro inactivo.');
       return;
     }
+
     if (!canAddGroupToCenter(data.centerId) && (!editingGroup || editingGroup.centerId !== data.centerId)) {
-      alert(`El centro seleccionado ya alcanzó el límite de grupos según su plan (${currentGroupCount}/${selectedCenter ? 'Básico: 2, Pro: 6, Enterprise: ilimitado' : 'sin plan'})`);
+      alert('El centro seleccionado ya alcanzó el límite de grupos según su plan.');
       return;
     }
 
-    const programs = validPrograms.map((item) => ({
-      program: item.program,
-      mentor: item.mentor,
-    }));
+    const groupPayload = {
+      name: data.name,
+      centerId: data.centerId,
+      status: editingGroup?.status ?? 'Inscripciones',
+      active: normalizeActive(data.active),
+      programs: validPrograms,
+    };
 
-    if (editingGroup) {
-      updateGroup(editingGroup.id, {
-        name: data.name,
-        centerId: data.centerId,
-        mentor: programs[0]?.mentor ?? '',
-        program: programs[0]?.program ?? '',
-        programs,
-        active: data.active,
-      } as Partial<typeof SHARED_GROUPS[number]>);
-    } else {
-      addGroup({
-        id: generateId(),
-        name: data.name,
-        centerId: data.centerId,
-        mentor: programs[0]?.mentor ?? '',
-        status: 'Inscripciones',
-        program: programs[0]?.program ?? '',
-        programs,
-        active: data.active,
-      } as typeof SHARED_GROUPS[number]);
+    try {
+      if (editingGroup) {
+        await updateGroupRequest(editingGroup.id, groupPayload);
+      } else {
+        await createGroupRequest(groupPayload);
+      }
+      await refresh();
+      setIsOpen(false);
+      setEditingGroup(null);
+      resetGroupForm();
+    } catch (error) {
+      console.error('Error guardando grupo:', error);
+      alert('No se pudo guardar el grupo. Intenta de nuevo.');
     }
-    refresh();
-    setIsOpen(false);
-    setEditingGroup(null);
-    resetGroupForm();
   };
 
-  const openEdit = (group: GroupView) => {
-    setEditingGroup(group as unknown as Group);
-    const center = CENTERS.find((c) => c.name === group.org);
-    const shared = SHARED_GROUPS.find((g) => g.id === group.id);
-    const programs = shared?.programs ?? [{ program: shared?.program ?? '', mentor: group.mentor }];
+  const openEdit = (groupView: GroupView) => {
+    const group = groups.find((item) => item.id === groupView.id);
+    if (!group) return;
+
+    setEditingGroup(group);
     reset({
       name: group.name,
-      centerId: center?.id ?? '',
-      active: shared?.active ?? true,
-      programs: programs.map((assignment) => ({ program: assignment.program, mentor: assignment.mentor })),
+      centerId: group.centerId,
+      active: group.active,
+      programs: group.programs.length > 0 ? group.programs : [{ program: '', mentor: '' }],
     });
     setIsOpen(true);
   };
@@ -185,28 +206,26 @@ export const Groups = () => {
     setDetailGroup(group);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('¿Eliminar este grupo?')) {
-      removeGroup(id);
-      refresh();
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('¿Eliminar este grupo?')) return;
+    try {
+      await deleteGroupRequest(id);
+      await refresh();
+    } catch (error) {
+      console.error('Error eliminando grupo:', error);
+      alert('No se pudo eliminar el grupo.');
     }
   };
 
-  useMemo(() => {
-    void getTeachersRequest().then((response) => setTeachers(response.data));
-  }, []);
-
   const groupedByCenter = useMemo(() => {
-    return CENTERS.map((center) => ({
+    return centers.map((center) => ({
       center,
-      groups: groups.filter((group) => group.centerId === center.id),
+      groups: groupViews.filter((group) => group.centerId === center.id),
     })).filter((section) => section.groups.length > 0);
-  }, [groups]);
+  }, [centers, groupViews]);
 
   return (
     <div className="w-full space-y-6">
-
-      {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2" style={{ color: '#0f172a' }}>
@@ -226,7 +245,6 @@ export const Groups = () => {
         </button>
       </div>
 
-      {/* Buscador */}
       <div
         className="flex items-center gap-3 p-4 rounded-2xl"
         style={{ background: '#fff', border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
@@ -244,7 +262,6 @@ export const Groups = () => {
         </div>
       </div>
 
-      {/* Grid por centro */}
       <div className="space-y-6">
         {groupedByCenter.map((section) => (
           <div key={section.center.id} className="rounded-2xl bg-white p-4" style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -332,9 +349,8 @@ export const Groups = () => {
         )}
       </div>
 
-      {/* Modal */}
       <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setEditingGroup(null); resetGroupForm(); }} title={editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleSubmitGroup)} className="space-y-4">
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" style={{ color: '#334155' }}>Nombre del Grupo</label>
@@ -355,7 +371,7 @@ export const Groups = () => {
               {...register('centerId', { required: 'Selecciona un centro' })}
             >
               <option value="">Seleccionar...</option>
-              {CENTERS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {centers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             {errors.centerId && <p className="text-xs text-red-500">{errors.centerId.message}</p>}
           </div>

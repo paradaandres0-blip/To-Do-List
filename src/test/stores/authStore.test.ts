@@ -101,7 +101,7 @@ describe('authStore', () => {
       id: '1',
       name: 'Test User',
       email: 'test@example.com',
-      role: 'admin' as const,
+      role: 'ADMIN' as const,
     };
 
     act(() => {

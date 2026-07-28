@@ -29,8 +29,6 @@ export interface Teacher {
   email: string;
   phone: string;
   city: string;
-  /** Especialidades del docente (array → TEXT[] en PG) */
-  specialties: string[];
   status: TeacherStatus;
   createdAt: string;
   updatedAt: string;
@@ -42,7 +40,6 @@ export type CreateTeacherPayload = {
   email: string;
   phone: string;
   city: string;
-  specialties: string[];
   status?: TeacherStatus;
 };
 
@@ -55,19 +52,5 @@ export type TeacherFormValues = {
   email: string;
   phone: string;
   city: string;
-  specialties: string[];
   status: TeacherStatus;
 };
-
-/** Catálogo de especialidades (ampliable desde API en el futuro). */
-export const TEACHER_SPECIALTY_OPTIONS = [
-  'Entrenamiento Funcional',
-  'Nutrición Deportiva',
-  'Bienestar Mental',
-  'Pérdida de Peso',
-  'Fuerza y Acondicionamiento',
-  'Yoga / Movilidad',
-  'Rehabilitación',
-] as const;
-
-export type TeacherSpecialty = (typeof TEACHER_SPECIALTY_OPTIONS)[number];

@@ -1,6 +1,6 @@
 import api from './api';
 import type { Task, TaskForm } from '../types/task.types';
-import type { ApiResponse, PaginatedResponse } from '../types/api.types';
+import type { ApiResponse } from '../types/api.types';
 import { taskSchema } from '../schemas/task.schema';
 
 // ── Helper: extraer data de ApiResponse ──
@@ -38,16 +38,13 @@ let MOCK_TASKS: Task[] = [
   createMockTask({ id:'6', title:'Técnicas de Respiración', course:'Bienestar Mental', due:'2025-07-28', priority:'Alta', status:'En desarrollo', updatedAt:stamp(96) }),
 ];
 
-export const getTasksRequest = async (page = 1, pageSize = 10): Promise<PaginatedResponse<Task>> => {
+export const getTasksRequest = async (page = 1, pageSize = 10): Promise<Task[]> => {
   if (IS_MOCK) {
-    const total = MOCK_TASKS.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const start = (page - 1) * pageSize;
-    const data = MOCK_TASKS.slice(start, start + pageSize).map((task) => ({ ...task }));
-    return { data, total, page, pageSize, totalPages };
+    return MOCK_TASKS.slice(start, start + pageSize).map((task) => ({ ...task }));
   }
-  const response = await api.get<PaginatedResponse<Task>>('/tasks', { params: { page, pageSize } });
-  return extractData(response);
+  const response = await api.get<{ success: boolean; data: Task[] }>('/tasks', { params: { page, pageSize } });
+  return response.data.data;
 };
 export const createTaskRequest = async (payload: TaskForm): Promise<Task> => {
   if (IS_MOCK) {

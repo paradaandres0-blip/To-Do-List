@@ -13,7 +13,7 @@ import {
 export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
 type StudentPayload = Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt' | 'active' | 'program'> & Partial<Pick<Student, 'program' | 'active'>>;
 
-const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
+const extractData = <T>(response: { data: unknown }): T => {
   const d = response.data;
   if (d && typeof d === 'object' && 'success' in d && 'data' in d) {
     return (d as ApiResponse<T>).data;
@@ -30,8 +30,15 @@ export const getStudentsRequest = async (page = 1, pageSize = 50): Promise<Pagin
     const data = all.slice(start, start + pageSize);
     return { data, total, page, pageSize, totalPages };
   }
-  const response = await api.get<PaginatedResponse<Student>>('/students', { params: { page, pageSize } });
-  return extractData(response);
+
+  const response = await api.get<ApiResponse<PaginatedResponse<Student>> | PaginatedResponse<Student> | ApiResponse<Student[]>>('/students', { params: { page, pageSize } });
+  const extracted = extractData<PaginatedResponse<Student> | Student[]>(response);
+
+  if (Array.isArray(extracted)) {
+    return { data: extracted, total: extracted.length, page, pageSize, totalPages: 1 };
+  }
+
+  return extracted;
 };
 
 export const getStudentByIdRequest = async (id: string): Promise<Student> => {

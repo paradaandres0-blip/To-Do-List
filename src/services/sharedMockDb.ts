@@ -132,7 +132,7 @@ export const cloneStudents = () => SHARED_STUDENTS.map((s) => ({ ...s }));
 
 export const addStudent = (student: Student): void => {
   SHARED_STUDENTS = [student, ...SHARED_STUDENTS];
-  addMockAccount(student.email, student.name, 'student');
+  addMockAccount(student.email, student.name, 'STUDENT');
 };
 
 export const updateStudent = (id: string, payload: Partial<Student>): void => {

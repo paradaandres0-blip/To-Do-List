@@ -218,11 +218,11 @@ export const Login = () => {
         </p>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-semibold">Docente:</span>{' '}
-          docente@workflow.academy · docente123
+          docente@workflow.academy · 123456
         </p>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-semibold">Estudiante:</span>{' '}
-          estudiante@workflow.academy · estudiante123
+          estudiante@workflow.academy · 123456
         </p>
       </div>
 
