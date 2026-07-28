@@ -1,7 +1,6 @@
 /**
  * Extrae un mensaje legible a partir de un error lanzado por la capa de
- * servicios (axios en modo real o un objeto plano `{ response: { data: { message } } }`
- * en modo mock).
+ * servicios (axios o un objeto plano `{ response: { data: { message } } }`).
  *
  * Evita el uso de `any` y centraliza la lógica de "¿qué mensaje muestro?".
  */

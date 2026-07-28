@@ -11,7 +11,7 @@ export interface Activity {
   /** Módulo al que pertenece (column) */
   moduleId: string;
   /** Curso al que pertenece */
-  courseId: string;
+  course?: string;
   /** Estudiante asignado */
   studentId: string;
   /** Docente que creó/asignó la actividad */

@@ -2,9 +2,10 @@
 import { Building2, Plus, Search, Users, BookOpen, Globe, Trash2, Pencil, Eye, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
-import { createCenterRequest, deleteCenterRequest, getCentersRequest, updateCenterRequest } from '../../services/centerService';
+import { createCenterRequest, deleteCenterRequest, disableCenterRequest, enableCenterRequest, getCentersRequest, updateCenterRequest } from '../../services/centerService';
 import { getGroupsRequest } from '../../services/groupService';
 import { getStudentsRequest } from '../../services/studentService';
+import useAuthStore from '../../store/authStore';
 import type { Center } from '../../types/center.types';
 import type { Group } from '../../types/group.types';
 import type { Student } from '../../types/student.types';
@@ -37,8 +38,9 @@ export const Organizations = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Center | null>(null);
   const [detailOrg, setDetailOrg] = useState<Organization | null>(null);
-  const [actionTarget, setActionTarget] = useState<{ id: string; type: 'deactivate' | 'delete' } | null>(null);
+  const [actionTarget, setActionTarget] = useState<{ id: string; type: 'deactivate' | 'activate' | 'delete' } | null>(null);
   const [adminPassword, setAdminPassword] = useState('');
+  const user = useAuthStore((state) => state.user);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrgForm>();
 
@@ -114,19 +116,8 @@ export const Organizations = () => {
 
   const openDetails = (org: Organization) => setDetailOrg(org);
 
-  const toggleActive = async (id: string) => {
-    const center = centers.find((c) => c.id === id);
-    if (!center) return;
-    try {
-      await updateCenterRequest(id, { active: !center.active });
-      await refresh();
-      if (detailOrg?.id === id) {
-        setDetailOrg({ ...detailOrg, active: !detailOrg.active });
-      }
-    } catch (error) {
-      console.error('Error actualizando estado del centro:', error);
-      alert('No se pudo actualizar el estado del centro.');
-    }
+  const toggleActive = async (id: string, type: 'activate' | 'deactivate') => {
+    setActionTarget({ id, type });
   };
 
   const canAddGroupToCenter = (centerId: string) => {
@@ -137,22 +128,29 @@ export const Organizations = () => {
 
   const confirmAction = async () => {
     if (!actionTarget) return;
-    if (actionTarget.type === 'delete' && adminPassword !== '123456') {
-      alert('La contraseña de administrador no es correcta.');
+    if (!user?.email) {
+      alert('No hay usuario administrador autenticado.');
+      return;
+    }
+
+    if ((actionTarget.type === 'delete' || actionTarget.type === 'deactivate' || actionTarget.type === 'activate') && !adminPassword) {
+      alert('Ingresa la contraseña de administrador.');
       return;
     }
 
     try {
       if (actionTarget.type === 'delete') {
-        await deleteCenterRequest(actionTarget.id);
+        await deleteCenterRequest(actionTarget.id, user.email, adminPassword);
         if (detailOrg?.id === actionTarget.id) setDetailOrg(null);
-      } else {
-        await updateCenterRequest(actionTarget.id, { active: false });
+      } else if (actionTarget.type === 'deactivate') {
+        await disableCenterRequest(actionTarget.id, user.email, adminPassword);
+      } else if (actionTarget.type === 'activate') {
+        await enableCenterRequest(actionTarget.id, user.email, adminPassword);
       }
       await refresh();
     } catch (error) {
       console.error('Error ejecutando acción de centro:', error);
-      alert('No se pudo completar la acción.');
+      alert('No se pudo completar la acción. Revisa la contraseña de administrador.');
     } finally {
       setActionTarget(null);
       setAdminPassword('');
@@ -279,7 +277,7 @@ export const Organizations = () => {
                       <Pencil size={16} />
                     </button>
                     <button
-                      onClick={() => toggleActive(org.id)}
+                      onClick={() => toggleActive(org.id, org.active ? 'deactivate' : 'activate')}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                         org.active ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                       }`}
@@ -388,7 +386,7 @@ export const Organizations = () => {
                 <button
                   onClick={() => {
                     if (detailOrg) {
-                      toggleActive(detailOrg.id);
+                      toggleActive(detailOrg.id, detailOrg.active ? 'deactivate' : 'activate');
                     }
                   }}
                   className={`w-full px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -432,23 +430,29 @@ export const Organizations = () => {
         )}
       </Modal>
 
-      <Modal isOpen={!!actionTarget} onClose={() => { setActionTarget(null); setAdminPassword(''); }} title={actionTarget?.type === 'delete' ? 'Confirmar eliminación' : 'Confirmar desactivación'}>
+      <Modal isOpen={!!actionTarget} onClose={() => { setActionTarget(null); setAdminPassword(''); }} title={
+        actionTarget?.type === 'delete'
+          ? 'Confirmar eliminación'
+          : actionTarget?.type === 'activate'
+            ? 'Confirmar activación'
+            : 'Confirmar desactivación'
+      }>
         <div className="space-y-4">
           <p className="text-sm text-slate-700">
             {actionTarget?.type === 'delete'
               ? 'Esta acción eliminará el centro, todos sus grupos y las cuentas de los estudiantes asociados. Para continuar, ingresa la contraseña de administrador.'
-              : 'Al desactivar este centro se desactivarán temporalmente todos sus grupos y alumnos asociados hasta que vuelva a activarse.'}
+              : actionTarget?.type === 'activate'
+                ? 'Al activar este centro se reactivarán los grupos y alumnos asociados.'
+                : 'Al desactivar este centro se desactivarán temporalmente todos sus grupos y alumnos asociados hasta que vuelva a activarse.'}
           </p>
-          {actionTarget?.type === 'delete' && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">Contraseña de administrador</label>
-              <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all" />
-            </div>
-          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700">Contraseña de administrador</label>
+            <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all" />
+          </div>
           <div className="flex gap-3 justify-end">
             <button type="button" onClick={() => { setActionTarget(null); setAdminPassword(''); }} className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all" style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
             <button type="button" onClick={confirmAction} className={`px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all ${actionTarget?.type === 'delete' ? 'bg-red-600' : 'bg-slate-700'}`}>
-              {actionTarget?.type === 'delete' ? 'Eliminar' : 'Desactivar'}
+              {actionTarget?.type === 'delete' ? 'Eliminar' : actionTarget?.type === 'activate' ? 'Activar' : 'Desactivar'}
             </button>
           </div>
         </div>

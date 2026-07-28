@@ -10,7 +10,12 @@ import type { Teacher } from '../../types/teacher.types';
 import type { Center } from '../../types/center.types';
 import type { Group } from '../../types/group.types';
 
-const programOptions = ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness', 'Pérdida de Peso'];
+const ALL_PROGRAM_OPTIONS = ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness', 'Pérdida de Peso'];
+const PROGRAM_OPTIONS_BY_PLAN: Record<Required<Center>['plan'], string[]> = {
+  'Básico': ['Entrenamiento Funcional', 'Nutrición Deportiva'],
+  'Pro': ['Entrenamiento Funcional', 'Nutrición Deportiva', 'Mindfulness'],
+  'Enterprise': ALL_PROGRAM_OPTIONS,
+};
 
 interface GroupProgramAssignment {
   program: string;
@@ -58,7 +63,7 @@ export const Groups = () => {
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [detailGroup, setDetailGroup] = useState<GroupView | null>(null);
 
-  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<NewGroupForm>({
+  const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm<NewGroupForm>({
     defaultValues: {
       name: '',
       centerId: '',
@@ -67,6 +72,9 @@ export const Groups = () => {
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'programs' });
+  const selectedCenterId = watch('centerId');
+  const selectedCenter = useMemo(() => centers.find((center) => center.id === selectedCenterId), [centers, selectedCenterId]);
+  const programOptions = useMemo(() => selectedCenter ? PROGRAM_OPTIONS_BY_PLAN[selectedCenter.plan] : ALL_PROGRAM_OPTIONS, [selectedCenter]);
 
   const groupViews = useMemo<GroupView[]>(() => {
     return (groups ?? []).map((group) => {
@@ -379,7 +387,10 @@ export const Groups = () => {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             <div className="flex items-start gap-2">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-              <p>El límite de grupos depende del plan del centro: Básico 2, Pro 6 y Enterprise ilimitado. Además, cada grupo admite máximo 25 alumnos.</p>
+              <p>
+                El límite de grupos depende del plan del centro: Básico 2, Pro 6 y Enterprise ilimitado.
+                {selectedCenter ? ` Este centro puede usar ${programOptions.join(', ')}.` : ' Selecciona un centro para ver los programas disponibles.'}
+              </p>
             </div>
           </div>
 

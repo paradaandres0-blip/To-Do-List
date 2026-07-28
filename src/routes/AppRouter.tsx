@@ -1,5 +1,8 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 
+import useAuthStore from '../store/authStore';
+import { getHomeForRole, normalizeRole } from '../utils/roleRouting';
+
 // Layouts
 import { AuthLayout }      from '../layouts/AuthLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
@@ -31,6 +34,22 @@ import { MyTeacherProfile }  from '../pages/teachers/MyTeacherProfile';
 
 // Portal estudiante
 import { StudentBoard } from '../pages/students/StudentBoard';
+
+const HomeRedirect = () => {
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token) ?? localStorage.getItem('wf_token');
+  const role = normalizeRole(user?.role);
+
+  if (!token) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  if (!role) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  return <Navigate to={getHomeForRole(role)} replace />;
+};
 
 const router = createBrowserRouter([
   { path: '/login', element: <Navigate to="/auth/login" replace /> },
@@ -105,7 +124,7 @@ const router = createBrowserRouter([
     ],
   },
 
-  { path: '*', element: <Navigate to="/auth/login" replace /> },
+  { path: '*', element: <HomeRedirect /> },
 ]);
 
 export const AppRouter = () => <RouterProvider router={router} />;

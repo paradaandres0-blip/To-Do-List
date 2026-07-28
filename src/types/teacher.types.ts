@@ -1,9 +1,8 @@
 /**
  * Perfil de Docente (Teacher)
  *
- * Contrato pensado para un backend futuro con PostgreSQL.
- * Hoy se usa en mock (`VITE_AUTH_MODE=mock`); al pasar a real
- * el service llama a `/teachers` y el shape se mantiene.
+ * Contrato pensado para un backend real con PostgreSQL.
+ * El service consume `/teachers` y el shape se mantiene.
  *
  * Tabla sugerida (PostgreSQL):
  *   teachers (
@@ -29,6 +28,7 @@ export interface Teacher {
   email: string;
   phone: string;
   city: string;
+  specialties: string[];
   status: TeacherStatus;
   createdAt: string;
   updatedAt: string;
@@ -40,7 +40,9 @@ export type CreateTeacherPayload = {
   email: string;
   phone: string;
   city: string;
+  specialties?: string[];
   status?: TeacherStatus;
+  password?: string;
 };
 
 /** Payload parcial para actualizar / completar el perfil. */
@@ -52,5 +54,7 @@ export type TeacherFormValues = {
   email: string;
   phone: string;
   city: string;
+  specialties: string[];
   status: TeacherStatus;
+  password?: string;
 };

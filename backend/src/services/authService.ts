@@ -125,6 +125,36 @@ export const login = async (email: string, password: string) => {
   const teacher = await prisma.teacher.findUnique({ where: { userId: user.id } });
   const student = await prisma.student.findUnique({ where: { userId: user.id } });
 
+  const normalizeStatus = (status?: string | null): string => {
+    const upper = (status ?? '').toUpperCase();
+    if (upper === 'ACTIVO' || upper === 'ACTIVE') return 'Activo';
+    if (upper === 'INACTIVO' || upper === 'INACTIVE') return 'Inactivo';
+    if (upper === 'LICENCIA') return 'Licencia';
+    return status ?? 'Activo';
+  };
+
+  if (teacher) {
+    const normalizedStatus = normalizeStatus(teacher.status);
+    if (normalizedStatus !== 'Activo') {
+      throw new Error('El docente se encuentra inactivo y no puede ingresar al sistema');
+    }
+  }
+
+  if (student) {
+    if (!student.active) {
+      throw new Error('El centro se encuentra desactivado por lo tanto el usuario no puede ingresar a su tablero');
+    }
+
+    const group = await prisma.group.findFirst({
+      where: { name: student.group },
+      select: { center: { select: { active: true } } },
+    });
+
+    if (group?.center?.active === false) {
+      throw new Error('El centro se encuentra desactivado por lo tanto el usuario no puede ingresar a su tablero');
+    }
+  }
+
   // Generar tokens
   const payload: TokenPayload = {
     userId: user.id,

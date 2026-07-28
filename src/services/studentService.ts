@@ -1,17 +1,11 @@
 import api from './api';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
 import type { Student } from '../types/student.types';
-import {
-  SHARED_STUDENTS,
-  cloneStudents,
-  addStudent as sharedAddStudent,
-  updateStudent as sharedUpdateStudent,
-  removeStudent as sharedRemoveStudent,
-  getProgramForGroup,
-} from './sharedMockDb';
 
-export const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
-type StudentPayload = Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt' | 'active' | 'program'> & Partial<Pick<Student, 'program' | 'active'>>;
+type StudentPayload = Omit<Student, 'id' | 'sessions' | 'progress' | 'joinedAt' | 'active' | 'program'> &
+  Partial<Pick<Student, 'program' | 'active'>> & { password?: string };
+
+type StudentResponse = Student & { generatedPassword?: string };
 
 const extractData = <T>(response: { data: unknown }): T => {
   const d = response.data;
@@ -22,15 +16,6 @@ const extractData = <T>(response: { data: unknown }): T => {
 };
 
 export const getStudentsRequest = async (page = 1, pageSize = 50): Promise<PaginatedResponse<Student>> => {
-  if (IS_MOCK) {
-    const all = cloneStudents();
-    const total = all.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = (page - 1) * pageSize;
-    const data = all.slice(start, start + pageSize);
-    return { data, total, page, pageSize, totalPages };
-  }
-
   const response = await api.get<ApiResponse<PaginatedResponse<Student>> | PaginatedResponse<Student> | ApiResponse<Student[]>>('/students', { params: { page, pageSize } });
   const extracted = extractData<PaginatedResponse<Student> | Student[]>(response);
 
@@ -42,32 +27,12 @@ export const getStudentsRequest = async (page = 1, pageSize = 50): Promise<Pagin
 };
 
 export const getStudentByIdRequest = async (id: string): Promise<Student> => {
-  if (IS_MOCK) {
-    const student = SHARED_STUDENTS.find((item) => item.id === id);
-    if (!student) throw new Error('Alumno no encontrado');
-    return { ...student };
-  }
   const response = await api.get<ApiResponse<Student>>(`/students/${id}`);
   return extractData(response);
 };
 
-export const createStudentRequest = async (payload: StudentPayload): Promise<Student> => {
-  if (IS_MOCK) {
-    const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
-    const program = getProgramForGroup(payload.group) || payload.program || '';
-    const created: Student = {
-      ...payload,
-      id,
-      program,
-      active: payload.active ?? true,
-      sessions: 0,
-      progress: 0,
-      joinedAt: new Date().toISOString().split('T')[0],
-    };
-    sharedAddStudent(created);
-    return { ...created };
-  }
-  const response = await api.post<ApiResponse<Student>>('/students', payload);
+export const createStudentRequest = async (payload: StudentPayload): Promise<StudentResponse> => {
+  const response = await api.post<ApiResponse<StudentResponse>>('/students', payload);
   return extractData(response);
 };
 
@@ -75,25 +40,16 @@ export const updateStudentRequest = async (
   id: string,
   payload: Partial<StudentPayload & Pick<Student, 'sessions' | 'progress'>>
 ): Promise<Student> => {
-  if (IS_MOCK) {
-    const index = SHARED_STUDENTS.findIndex((student) => student.id === id);
-    if (index === -1) throw new Error('Alumno no encontrado');
-    if (payload.group) {
-      payload.program = getProgramForGroup(payload.group) || payload.program;
-    }
-    sharedUpdateStudent(id, payload);
-    return { ...SHARED_STUDENTS[index] };
-  }
   const response = await api.put<ApiResponse<Student>>(`/students/${id}`, payload);
   return extractData(response);
 };
 
 export const deleteStudentRequest = async (id: string): Promise<void> => {
-  if (IS_MOCK) {
-    const exists = SHARED_STUDENTS.some((student) => student.id === id);
-    if (!exists) throw new Error('Alumno no encontrado');
-    sharedRemoveStudent(id);
-    return;
-  }
   await api.delete(`/students/${id}`);
+};
+
+export const resetStudentPasswordRequest = async (id: string): Promise<string> => {
+  const response = await api.post<ApiResponse<{ generatedPassword: string }>>(`/students/${id}/reset-password`);
+  const data = extractData<{ generatedPassword: string }>(response);
+  return data.generatedPassword;
 };

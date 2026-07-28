@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const studentStatusSchema = z.enum(['Activo', 'Inactivo', 'Suspendido', 'Pendiente']);
+export const studentStatusSchema = z.enum(['Activo', 'Inactivo']);
 
 const assignmentFields = {
   group: z.string().trim().min(1, 'Selecciona un grupo'),
@@ -13,6 +13,7 @@ export const studentSchema = z.object({
   centerId: z.string().trim().min(1, 'Selecciona un centro'),
   ...assignmentFields,
   status: studentStatusSchema,
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
   program: z.string().optional(),
 });
 

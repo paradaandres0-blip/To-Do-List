@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import logger from './config/logger';
+import bcrypt from 'bcrypt';
 import authRoutes from './routes/authRoutes';
 import { createCentersRouter } from './routes/centers';
 import { createGroupsRouter } from './routes/groups';
@@ -120,6 +121,13 @@ const mapModule = async (module: any) => {
   };
 };
 
+const generateRandomPassword = (len = 8) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let pw = '';
+  for (let i = 0; i < len; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  return pw;
+};
+
 // Middleware
 app.use(helmet());
 const corsOptions = {
@@ -129,7 +137,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 };
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -194,17 +201,30 @@ app.get('/api/teachers', async (_req, res, next) => {
 
 app.post('/api/teachers', async (req, res, next) => {
   try {
-    const teacher = await prisma.teacher.create({
-      data: {
-        name: req.body.name,
-        email: req.body.email,
-        phone: req.body.phone ?? '',
-        city: req.body.city ?? '',
-        specialties: Array.isArray(req.body.specialties) ? req.body.specialties.join(',') : '',
-        status: (req.body.status ?? 'Activo').toUpperCase(),
-      },
+    // Prevent duplicate user by email
+    const existing = await prisma.user.findUnique({ where: { email: req.body.email } });
+    if (existing) return res.status(400).json({ success: false, message: 'Ya existe un usuario con ese correo' });
+
+    const plain = req.body.password ?? generateRandomPassword(8);
+    const hashed = await bcrypt.hash(plain, 10);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({ data: { email: req.body.email, password: hashed, name: req.body.name, role: 'INSTRUCTOR' } });
+      const teacher = await tx.teacher.create({
+        data: {
+          userId: user.id,
+          name: req.body.name,
+          email: req.body.email,
+          phone: req.body.phone ?? '',
+          city: req.body.city ?? '',
+          specialties: Array.isArray(req.body.specialties) ? req.body.specialties.join(',') : '',
+          status: (req.body.status ?? 'Activo').toUpperCase(),
+        },
+      });
+      return { user, teacher };
     });
-    res.status(201).json({ success: true, data: mapTeacher(teacher) });
+
+    res.status(201).json({ success: true, data: { ...mapTeacher(result.teacher), generatedPassword: plain } });
   } catch (error) {
     next(error);
   }
@@ -212,6 +232,7 @@ app.post('/api/teachers', async (req, res, next) => {
 
 app.put('/api/teachers/:id', async (req, res, next) => {
   try {
+    // Update teacher fields
     const teacher = await prisma.teacher.update({
       where: { id: req.params.id },
       data: {
@@ -223,7 +244,38 @@ app.put('/api/teachers/:id', async (req, res, next) => {
         status: req.body.status ? String(req.body.status).toUpperCase() : undefined,
       },
     });
+
+    // If password provided, update linked user
+    if (req.body.password) {
+      if (teacher.userId) {
+        const hashed = await bcrypt.hash(req.body.password, 10);
+        await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed } });
+      }
+    }
+
     res.json({ success: true, data: mapTeacher(teacher) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reset teacher password (admin)
+app.post('/api/teachers/:id/reset-password', async (req, res, next) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({ where: { id: req.params.id } });
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+    const plain = generateRandomPassword(10);
+    const hashed = await bcrypt.hash(plain, 10);
+
+    if (teacher.userId) {
+      await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed } });
+    } else {
+      const user = await prisma.user.create({ data: { email: teacher.email, password: hashed, name: teacher.name, role: 'INSTRUCTOR' } });
+      await prisma.teacher.update({ where: { id: teacher.id }, data: { userId: user.id } });
+    }
+
+    res.json({ success: true, data: { generatedPassword: plain } });
   } catch (error) {
     next(error);
   }
@@ -231,7 +283,10 @@ app.put('/api/teachers/:id', async (req, res, next) => {
 
 app.delete('/api/teachers/:id', async (req, res, next) => {
   try {
-    await prisma.teacher.delete({ where: { id: req.params.id } });
+    await prisma.teacher.update({
+      where: { id: req.params.id },
+      data: { status: 'INACTIVO' },
+    });
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -260,19 +315,32 @@ app.post('/api/students', async (req, res, next) => {
   try {
     const groupName = req.body.group ?? '';
     const program = req.body.program ?? (await getProgramForGroup(groupName));
-    const student = await prisma.student.create({
-      data: {
-        name: req.body.name,
-        email: req.body.email,
-        phone: req.body.phone ?? '',
-        program,
-        group: groupName,
-        status: (req.body.status ?? 'Pendiente').toUpperCase(),
-        active: req.body.active ?? true,
-        teacherId: req.body.teacherId ?? undefined,
-      },
+    // Prevent duplicate user by email
+    const existing = await prisma.user.findUnique({ where: { email: req.body.email } });
+    if (existing) return res.status(400).json({ success: false, message: 'Ya existe un usuario con ese correo' });
+
+    const plain = req.body.password ?? generateRandomPassword(8);
+    const hashed = await bcrypt.hash(plain, 10);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({ data: { email: req.body.email, password: hashed, name: req.body.name, role: 'STUDENT' } });
+      const student = await tx.student.create({
+        data: {
+          userId: user.id,
+          name: req.body.name,
+          email: req.body.email,
+          phone: req.body.phone ?? '',
+          program,
+          group: groupName,
+          status: (req.body.status ?? 'Pendiente').toUpperCase(),
+          active: req.body.active ?? true,
+          teacherId: req.body.teacherId ?? undefined,
+        },
+      });
+      return { user, student };
     });
-    res.status(201).json({ success: true, data: await mapStudent(student) });
+
+    res.status(201).json({ success: true, data: { ...(await mapStudent(result.student)), generatedPassword: plain } });
   } catch (error) {
     next(error);
   }
@@ -295,7 +363,39 @@ app.put('/api/students/:id', async (req, res, next) => {
         teacherId: req.body.teacherId,
       },
     });
+
+    // If password provided, update linked user
+    if (req.body.password) {
+      if (student.userId) {
+        const hashed = await bcrypt.hash(req.body.password, 10);
+        await prisma.user.update({ where: { id: student.userId }, data: { password: hashed } });
+      }
+    }
+
     res.json({ success: true, data: await mapStudent(student) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reset student password (admin) -> generate new password, update User, return generatedPassword
+app.post('/api/students/:id/reset-password', async (req, res, next) => {
+  try {
+    const student = await prisma.student.findUnique({ where: { id: req.params.id } });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    const plain = generateRandomPassword(10);
+    const hashed = await bcrypt.hash(plain, 10);
+
+    if (student.userId) {
+      await prisma.user.update({ where: { id: student.userId }, data: { password: hashed } });
+    } else {
+      // create user and link
+      const user = await prisma.user.create({ data: { email: student.email, password: hashed, name: student.name, role: 'STUDENT' } });
+      await prisma.student.update({ where: { id: student.id }, data: { userId: user.id } });
+    }
+
+    res.json({ success: true, data: { generatedPassword: plain } });
   } catch (error) {
     next(error);
   }

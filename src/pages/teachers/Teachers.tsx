@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
+import type { SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   GraduationCap, Plus, Search, Pencil, Trash2, Eye,
@@ -19,7 +20,6 @@ import {
 } from '../../services/teacherService';
 import { teacherSchema } from '../../schemas/teacher.schema';
 import { getErrorMessage } from '../../utils/errorMessage';
-import { getPasswordForAccount } from '../../services/mockDb';
 
 const STATUS_STYLE: Record<TeacherStatus, string> = {
   Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -46,21 +46,25 @@ export const Teachers = () => {
   const [editing, setEditing] = useState<Teacher | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const defaultFormValues: TeacherFormValues = {
+    name: '',
+    email: '',
+    phone: '',
+    city: '',
+    specialties: [],
+    status: 'Activo',
+    password: undefined,
+  };
+
   const {
+    control,
     register,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      city: '',
-      specialties: [],
-      status: 'Activo',
-    },
+    defaultValues: defaultFormValues as any,
   });
 
   useEffect(() => {
@@ -138,7 +142,9 @@ export const Teachers = () => {
       email: teacher.email,
       phone: teacher.phone,
       city: teacher.city,
+      specialties: teacher.specialties ?? [],
       status: teacher.status,
+      password: undefined,
     });
     setModalOpen(true);
   };
@@ -150,7 +156,7 @@ export const Teachers = () => {
     reset();
   };
 
-  const onSubmit = async (data: TeacherFormValues) => {
+  const onSubmit: SubmitHandler<TeacherFormValues> = async (data) => {
     setIsSaving(true);
     setFormError(null);
     try {
@@ -160,6 +166,8 @@ export const Teachers = () => {
         phone: data.phone,
         city: data.city,
         status: data.status,
+        // include optional password when creating
+        ...(data.password ? { password: data.password } : {}),
       };
       if (editing) {
         const updated = await updateTeacherRequest(editing.id, payload);
@@ -167,11 +175,10 @@ export const Teachers = () => {
       } else {
         const created = await createTeacherRequest(payload);
         setTeachers((prev) => [created, ...prev]);
-        // Mostrar contraseña generada
-        const pwd = getPasswordForAccount(created.email);
-        if (pwd) {
-          setCreatedEmail(created.email);
-          setCreatedPassword(pwd);
+        const maybePwd = (created as any).generatedPassword;
+        if (maybePwd) {
+          setCreatedEmail((created as any).email);
+          setCreatedPassword(maybePwd);
           setPasswordModal(true);
         }
       }
@@ -441,6 +448,70 @@ export const Teachers = () => {
                 minLength: { value: 2, message: 'Mínimo 2 caracteres' },
               })}
             />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: '#334155' }}>Especialidades</label>
+              <Controller
+                name="specialties"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    value={(field.value ?? []).join(', ')}
+                    onChange={(e) => field.onChange(
+                      e.target.value
+                        .split(',')
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    )}
+                    placeholder="Ej: Nutrición Deportiva, Entrenamiento Funcional"
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
+                    style={{ borderColor: errors.specialties ? '#f87171' : '#e2e8f0', color: '#0f172a' }}
+                  />
+                )}
+              />
+              {errors.specialties && <p className="text-xs text-red-500">{errors.specialties.message}</p>}
+            </div>
+            {/* Password (creation + edit). For edit we allow generating a new password. */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  label="Contraseña"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  error={errors.password?.message}
+                  {...register('password')}
+                />
+              </div>
+              {editing && (
+                <div className="pt-6">
+                  <button type="button" onClick={async () => {
+                    try {
+                      const { resetTeacherPasswordRequest } = await import('../../services/teacherService');
+                      const pwd = await resetTeacherPasswordRequest(editing.id);
+                      // populate form including password and show modal
+                      reset({
+                        name: editing.name,
+                        email: editing.email,
+                        phone: editing.phone,
+                        city: editing.city,
+                        status: editing.status,
+                        password: pwd,
+                      } as any);
+                      setCreatedEmail(editing.email);
+                      setCreatedPassword(pwd);
+                      setPasswordModal(true);
+                    } catch (err) {
+                      console.error('Error al generar contraseña:', err);
+                      alert('No se pudo generar la contraseña');
+                    }
+                  }} className="mt-6 px-3 py-2 rounded-lg text-sm font-medium" style={{ border:'1px solid #e2e8f0' }}>Generar</button>
+                </div>
+              )}
+            </div>
+            <p className="text-xs" style={{ color: '#64748b' }}>
+              {editing
+                ? 'Dejar vacío para mantener la contraseña actual. Generar crea una nueva contraseña y reemplaza la anterior.'
+                : 'Contraseña que el docente usará para iniciar sesión.'}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5 max-w-xs">

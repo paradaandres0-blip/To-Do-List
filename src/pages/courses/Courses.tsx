@@ -12,7 +12,7 @@ import {
   updateCourseRequest,
   deleteCourseRequest
 } from '../../services/courseService';
-import { GROUPS } from '../../services/sharedMockDb';
+import { getGroupsRequest } from '../../services/groupService';
 import { getModulesRequest } from '../../services/moduleService';
 import useActivityStore from '../../store/activityStore';
 
@@ -26,6 +26,7 @@ interface CourseFormInputs {
 export const Courses = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,12 +49,14 @@ export const Courses = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const [coursesData, modulesData] = await Promise.all([
+        const [coursesData, modulesData, groupsData] = await Promise.all([
           getCoursesRequest(),
           getModulesRequest(),
+          getGroupsRequest(),
         ]);
         setCourses(coursesData);
         setModules(modulesData);
+        setGroups(groupsData.filter((group) => group.active !== false).map((group) => group.name));
         await loadActivities();
       } catch (error) {
         console.error('Error al obtener cursos:', error);
@@ -316,8 +319,8 @@ export const Courses = () => {
                       {...register(`groups.${index}.group`, { required: 'Selecciona un grupo' })}
                     >
                       <option value="">Seleccionar grupo...</option>
-                      {GROUPS.map((group) => (
-                        <option key={group.id} value={group.name}>{group.name}</option>
+                      {groups.map((groupName) => (
+                        <option key={groupName} value={groupName}>{groupName}</option>
                       ))}
                     </select>
                     {errors.groups?.[index]?.group && (

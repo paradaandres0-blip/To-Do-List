@@ -58,9 +58,7 @@ const processQueue = (token: string | null, err: unknown = null) => {
 // ── Response interceptor: validación de respuestas + manejo global de errores ──
 api.interceptors.response.use(
   (response) => {
-    // Validar solo en modo real (con backend)
-    const isReal = import.meta.env.VITE_AUTH_MODE !== 'mock';
-    if (isReal && response.data) {
+    if (response.data) {
       const url = response.config?.url ?? 'unknown';
 
       // Verificar si la respuesta tiene forma de ApiResponse o PaginatedResponse
@@ -77,9 +75,7 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Validar errores con apiErrorSchema en modo real
-    const isReal = import.meta.env.VITE_AUTH_MODE !== 'mock';
-    if (isReal && error.response?.data) {
+    if (error.response?.data) {
       const errorResult = apiErrorSchema.safeParse(error.response.data);
       if (!errorResult.success) {
         console.warn('[API Validation] Error response no sigue el estándar ApiError:', {

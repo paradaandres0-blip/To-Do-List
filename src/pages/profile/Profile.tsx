@@ -1,4 +1,4 @@
-import { User, Mail, Phone, MapPin, Shield, Edit3, Camera, Loader } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, Camera, Loader } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
 import { LazyImage } from '../../components/common';
@@ -133,12 +133,6 @@ export const Profile = () => {
           >
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold" style={{ color: '#0f172a' }}>Información Personal</h3>
-              <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                style={{ background: 'rgba(124,58,237,0.08)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}
-              >
-                <Edit3 size={12} /> Editar
-              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,30 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, GripVertical, LayoutGrid, Users, Trash2, CheckCircle, Clock, AlertCircle, Circle, X, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, BookOpen, Building2, Eye, EyeOff, LayoutGrid, Layers, Plus, Users, X } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useActivityStore from '../../store/activityStore';
 import useStudentStore from '../../store/studentStore';
-import { getModulesRequest } from '../../services/moduleService';
+import { getCentersRequest } from '../../services/centerService';
 import { getCoursesRequest } from '../../services/courseService';
-import type { Module } from '../../types/module.types';
-import type { Course } from '../../types/course.types';
+import { getGroupsRequest } from '../../services/groupService';
+import { getModulesRequest } from '../../services/moduleService';
 import type { Activity, ActivityStatus } from '../../types/activity.types';
 import { ACTIVITY_STATUSES } from '../../types/activity.types';
+import type { Center } from '../../types/center.types';
+import type { Course } from '../../types/course.types';
+import type { Group } from '../../types/group.types';
+import type { Module } from '../../types/module.types';
 
-const statusIcon: Record<ActivityStatus, React.ReactElement> = {
-  'Aprobada':      <CheckCircle size={14} className="text-emerald-500" />,
-  'En revisión':   <Clock        size={14} className="text-amber-500" />,
-  'En desarrollo': <Circle       size={14} className="text-blue-500" />,
-  'Pendiente':     <AlertCircle  size={14} className="text-slate-400" />,
-};
-
-const statusStyle: Record<ActivityStatus, string> = {
-  'Aprobada':      'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'En revisión':   'bg-amber-50   text-amber-700   border-amber-200',
-  'En desarrollo': 'bg-blue-50    text-blue-700    border-blue-200',
-  'Pendiente':     'bg-slate-50   text-slate-500   border-slate-200',
-};
-
-const Modal = ({ isOpen, onClose, title, children }: { isOpen:boolean; onClose:()=>void; title:string; children:React.ReactNode }) => {
+const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -51,13 +41,14 @@ export const TeacherBoard = () => {
   const deleteActivity = useActivityStore((s) => s.deleteActivity);
   const students = useStudentStore((s) => s.students);
   const getByTeacherId = useStudentStore((s) => s.getByTeacherId);
+  const loadStudents = useStudentStore((s) => s.loadStudents);
 
   const [modules, setModules] = useState<Module[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('all');
-
-  // Modal states
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [selectedCenterId, setSelectedCenterId] = useState<string>('all');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
@@ -68,78 +59,72 @@ export const TeacherBoard = () => {
   const [formStatus, setFormStatus] = useState<ActivityStatus>('Pendiente');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Cursos asignados al docente según los programas que imparten sus estudiantes
-  const myCourseIds = useMemo(() => {
+  const teacherStudents = useMemo(() => {
     if (!user?.teacherId) return [];
-    const teacherStudents = students.filter((student) => student.teacherId === user.teacherId);
-    const programNames = Array.from(new Set(teacherStudents.map((student) => student.program).filter(Boolean)));
-    return courses.filter((course) => programNames.includes(course.title)).map((course) => course.id);
-  }, [courses, students, user?.teacherId]);
+    return getByTeacherId(user.teacherId);
+  }, [getByTeacherId, user?.teacherId]);
 
-  // Cargar datos
+  const teacherGroupNames = useMemo(() => Array.from(new Set(teacherStudents.map((student) => student.group).filter(Boolean))), [teacherStudents]);
+  const teacherGroups = useMemo(() => groups.filter((group) => teacherGroupNames.includes(group.name)), [groups, teacherGroupNames]);
+  const teacherCenters = useMemo(() => centers.filter((center) => teacherGroups.some((group) => group.centerId === center.id)), [centers, teacherGroups]);
+
+  const visibleGroups = useMemo(() => {
+    return teacherGroups.filter((group) => selectedCenterId === 'all' || group.centerId === selectedCenterId);
+  }, [selectedCenterId, teacherGroups]);
+
+  const isCourseAssignedToGroup = (course: Course, group: Group) => {
+    const title = course.title.toLowerCase();
+    const groupMatch = course.groups.some((groupName) => groupName.toLowerCase() === group.name.toLowerCase());
+    const programMatch = group.programs.some((assignment) => title.includes(assignment.program.toLowerCase()));
+    return groupMatch || programMatch;
+  };
+
+  const boardGroups = useMemo(() => {
+    return visibleGroups.map((group) => ({
+      group,
+      courses: courses.filter((course) => isCourseAssignedToGroup(course, group)).map((course) => ({
+        course,
+        modules: modules.filter((module) => module.course === course.title && module.status === 'Activo'),
+      })),
+    }));
+  }, [courses, modules, visibleGroups]);
+
+  const myCourses = useMemo(() => courses.filter((course) => boardGroups.some((entry) => entry.courses.some((item) => item.course.id === course.id))), [boardGroups, courses]);
+
+  const activitiesByModule = useMemo(() => {
+    const map: Record<string, Activity[]> = {};
+    modules.forEach((module) => {
+      map[module.id] = activities.filter((activity) => activity.moduleId === module.id);
+    });
+    return map;
+  }, [activities, modules]);
+
   useEffect(() => {
     const load = async () => {
+      setLoadError(null);
       try {
-        const [modulesData, coursesData] = await Promise.all([
+        const [modulesData, coursesData, groupsData, centersData] = await Promise.all([
           getModulesRequest(),
           getCoursesRequest(),
+          getGroupsRequest(),
+          getCentersRequest(),
         ]);
         setModules(modulesData);
         setCourses(coursesData);
-      } catch (err) {
-        console.error('Error al cargar datos:', err);
+        setGroups(groupsData);
+        setCenters(centersData);
+      } catch (error) {
+        console.error('No se pudo cargar la estructura del backend', error);
+        setLoadError('No se pudo cargar la estructura del backend. Revisa la conexión con la base de datos.');
       }
     };
+
     load();
+    loadStudents();
     if (user?.teacherId) {
       loadByTeacher(user.teacherId);
     }
-  }, [user?.teacherId, loadByTeacher]);
-
-  // Mis cursos (solo los que tengo asignados)
-  const myCourses = useMemo(() => {
-    return courses.filter((c) => myCourseIds.includes(c.id));
-  }, [courses, myCourseIds]);
-
-  // Módulos de mis cursos
-  const myModules = useMemo(() => {
-    const courseTitles = myCourses.map((c) => c.title);
-    return modules.filter((m) => courseTitles.includes(m.course) && m.status === 'Activo');
-  }, [modules, myCourses]);
-
-  // Módulos filtrados por curso seleccionado
-  const filteredModules = useMemo(() => {
-    if (selectedCourseId === 'all') return myModules;
-    const course = courses.find((c) => c.id === selectedCourseId);
-    if (!course) return myModules;
-    return myModules.filter((m) => m.course === course.title);
-  }, [myModules, selectedCourseId, courses]);
-
-  // Mis estudiantes (los que están en los cursos que imparto)
-  const myStudents = useMemo(() => {
-    if (!user?.teacherId) return [];
-    return getByTeacherId(user.teacherId);
-  }, [user?.teacherId, getByTeacherId, students]);
-
-  // Actividades agrupadas por módulo
-  const activitiesByModule = useMemo(() => {
-    const map: Record<string, Activity[]> = {};
-    filteredModules.forEach((mod) => {
-      map[mod.id] = activities.filter((a) => a.moduleId === mod.id);
-    });
-    return map;
-  }, [filteredModules, activities]);
-
-  const onDragStart = (activityId: string) => setDraggingId(activityId);
-
-  const onDrop = async (moduleId: string) => {
-    if (!draggingId) return;
-    const activity = activities.find((a) => a.id === draggingId);
-    if (activity && activity.moduleId !== moduleId) {
-      await updateActivity(draggingId, { moduleId });
-    }
-    setDraggingId(null);
-  };
+  }, [loadByTeacher, loadStudents, user?.teacherId]);
 
   const openCreate = (moduleId: string) => {
     setEditingActivity(null);
@@ -147,7 +132,7 @@ export const TeacherBoard = () => {
     setFormTitle('');
     setFormDescription('');
     setFormLesson('');
-    setFormStudentId(myStudents[0]?.id ?? '');
+    setFormStudentId(teacherStudents[0]?.id ?? '');
     setFormStatus('Pendiente');
     setModalOpen(true);
   };
@@ -173,21 +158,30 @@ export const TeacherBoard = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user?.teacherId || !formTitle || !formStudentId) return;
-    const mod = modules.find((m) => m.id === selectedModuleId);
-    const courseTitle = mod?.course ?? '';
+    if (!user?.teacherId || !formTitle || !formStudentId || !selectedModuleId) return;
+    const module = modules.find((item) => item.id === selectedModuleId);
     const newProgress = mapStatusToProgress(formStatus);
 
     if (editingActivity) {
       await updateActivity(editingActivity.id, {
-        title: formTitle, description: formDescription, lesson: formLesson,
-        studentId: formStudentId, status: formStatus, progress: newProgress,
+        title: formTitle,
+        description: formDescription,
+        lesson: formLesson,
+        studentId: formStudentId,
+        status: formStatus,
+        progress: newProgress,
       });
     } else {
       await createActivity({
-        title: formTitle, description: formDescription, lesson: formLesson,
-        moduleId: selectedModuleId, courseId: courseTitle, studentId: formStudentId,
-        teacherId: user.teacherId, status: formStatus, progress: newProgress,
+        title: formTitle,
+        description: formDescription,
+        lesson: formLesson,
+        moduleId: selectedModuleId,
+        course: module?.course ?? '',
+        studentId: formStudentId,
+        teacherId: user.teacherId,
+        status: formStatus,
+        progress: newProgress,
       });
     }
     setModalOpen(false);
@@ -199,148 +193,148 @@ export const TeacherBoard = () => {
 
   if (!user?.teacherId) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-slate-500">Debes ser docente para ver este tablero.</p>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-slate-500">Debes iniciar sesión como docente para ver este tablero.</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col gap-3 min-h-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
-            <LayoutGrid size={22} className="text-purple-600" />
-            Tablero de Actividades
-          </h1>
-          <p className="text-xs mt-0.5 text-slate-400">
-            {user?.name?.split(' ')[0] ?? 'Docente'} — {myCourses.length} cursos asignados
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowPassword((value) => !value)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold bg-slate-100 border border-slate-200 text-slate-700"
-          >
+    <div className="h-full flex flex-col gap-4 min-h-0">
+      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
+              <Building2 size={22} className="text-purple-600" />
+              Tablero de Docente
+            </h1>
+            <p className="text-xs mt-0.5 text-slate-500">Se muestra solo la organización que está asignada a tu usuario real.</p>
+          </div>
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
             {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             {showPassword ? 'Ocultar' : 'Mostrar'} contraseña
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedCourseId}
-            onChange={(e) => setSelectedCourseId(e.target.value)}
-            className="text-sm rounded-xl px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"
-          >
-            <option value="all">Todos los cursos</option>
-            {myCourses.map((c) => (
-              <option key={c.id} value={c.id}>{c.title}</option>
-            ))}
-          </select>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold bg-purple-50 border border-purple-200 text-purple-600">
-            <Users size={15} />
-            {myStudents.length} alumnos
-          </div>
+
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"><Users size={15} />{teacherStudents.length} alumnos</div>
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"><Layers size={15} />{teacherGroups.length} grupos</div>
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"><BookOpen size={15} />{myCourses.length} cursos</div>
         </div>
+
+        {showPassword && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p className="font-semibold">Credencial de acceso</p>
+            <p className="mt-1">Correo: {user.email}</p>
+            <p className="font-mono">Contraseña: 123456</p>
+          </div>
+        )}
+
+        {loadError && (
+          <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <AlertTriangle size={16} className="mt-0.5" />
+            <p>{loadError}</p>
+          </div>
+        )}
       </div>
 
-      {showPassword && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <p className="font-semibold">Credencial de acceso</p>
-          <p className="mt-1">Correo: {user?.email ?? 'docente@workflow.academy'}</p>
-          <p className="font-mono">Contraseña: 123456</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Centro:</span>
+          <select value={selectedCenterId} onChange={(e) => setSelectedCenterId(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200">
+            <option value="all">Todos los centros</option>
+            {teacherCenters.map((center) => (
+              <option key={center.id} value={center.id}>{center.name}</option>
+            ))}
+          </select>
         </div>
-      )}
+        <p className="text-xs text-slate-400">Si no ves estructura, el usuario no tiene grupos, centro o cursos asignados en la base de datos.</p>
+      </div>
 
-      {filteredModules.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-100 min-h-[280px]">
-          <LayoutGrid size={40} className="mb-3 opacity-30 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-900">No hay módulos publicados</p>
-          <p className="text-xs mt-1 text-slate-400">Espera a que se asignen cursos con módulos publicados.</p>
+      {teacherStudents.length === 0 ? (
+        <div className="flex-1 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <p className="text-sm font-semibold">Aún no tienes alumnos vinculados a este docente.</p>
+          <p className="text-xs mt-2">Asigna estudiantes al docente para que aparezca la estructura real.</p>
+        </div>
+      ) : boardGroups.length === 0 ? (
+        <div className="flex-1 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <p className="text-sm font-semibold">No hay grupos o cursos asignados a esta cuenta.</p>
+          <p className="text-xs mt-2">Revisa que el docente tenga estudiantes, grupos y cursos vinculados a la organización.</p>
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-x-auto">
-          <div className="flex gap-4 h-full min-w-max pb-2">
-            {filteredModules.map((mod) => {
-              const moduleActivities = activitiesByModule[mod.id] ?? [];
+          <div className="flex gap-4 pb-4 min-w-[1100px]">
+            {boardGroups.map(({ group, courses: groupCourses }) => {
+              const center = centers.find((item) => item.id === group.centerId);
               return (
-                <div
-                  key={mod.id}
-                  className="w-72 flex flex-col rounded-2xl flex-shrink-0 bg-slate-100 border border-slate-200"
-                  style={{ maxHeight: '100%' }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => onDrop(mod.id)}
-                >
-                  <div className="px-3 py-3 flex items-center justify-between flex-shrink-0 border-b border-slate-200/50">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-2 h-2 rounded-full bg-purple-600 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <h2 className="text-sm font-bold text-slate-900 truncate">{mod.title}</h2>
-                        <p className="text-[10px] text-slate-400 truncate">{mod.course}</p>
+                <div key={group.id} className="w-[32rem] flex flex-col rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
+                  <div className="rounded-t-3xl border-b border-slate-200 bg-white px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Grupo</p>
+                    <h2 className="mt-2 text-lg font-semibold text-slate-900">{group.name}</h2>
+                    <p className="text-[11px] text-slate-500 mt-1">{center?.name ?? 'Centro no asignado'}</p>
+                    {group.programs.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {group.programs.map((program) => (
+                          <span key={program.program} className="rounded-full border border-purple-100 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700">{program.program}</span>
+                        ))}
                       </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white text-slate-500 flex-shrink-0 ml-2">
-                      {moduleActivities.length}
-                    </span>
-                  </div>
-
-                  <div className="px-2 pb-2 flex-1 overflow-y-auto space-y-2 min-h-[100px] pt-2">
-                    {moduleActivities.map((activity) => {
-                      const student = students.find((s) => s.id === activity.studentId);
-                      return (
-                        <div
-                          key={activity.id}
-                          draggable
-                          onDragStart={() => onDragStart(activity.id)}
-                          onDragEnd={() => setDraggingId(null)}
-                          onClick={() => openEdit(activity)}
-                          className="bg-white rounded-xl p-3 cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md"
-                          style={{ border: '1px solid #f1f5f9', opacity: draggingId === activity.id ? 0.6 : 1 }}
-                        >
-                          <div className="flex items-start gap-2">
-                            <GripVertical size={14} className="mt-0.5 flex-shrink-0 text-slate-300" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-900 truncate">{activity.title}</p>
-                              <p className="text-[11px] text-slate-400 mt-0.5 truncate">{student?.name ?? 'Sin asignar'}</p>
-                              {activity.lesson && <p className="text-[10px] text-slate-500 mt-1 truncate">📖 {activity.lesson}</p>}
-                              <div className="mt-2">
-                                <div className="flex justify-between text-[10px] mb-1">
-                                  <span className="text-slate-400">Progreso</span>
-                                  <span className="font-bold text-purple-600">{activity.progress}%</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-slate-100">
-                                  <div className="h-1.5 rounded-full transition-all" style={{
-                                    width: `${activity.progress}%`,
-                                    background: activity.progress === 100 ? 'linear-gradient(90deg,#059669,#10b981)' : 'linear-gradient(90deg,#7c3aed,#2563eb)',
-                                  }} />
-                                </div>
-                              </div>
-                              <div className="mt-2 flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  {statusIcon[activity.status]}
-                                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${statusStyle[activity.status]}`}>{activity.status}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleDelete(activity.id); }}
-                                  className="p-0.5 rounded hover:bg-red-50 transition-colors">
-                                  <Trash2 size={11} className="text-red-400" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {moduleActivities.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-xs text-slate-400">Arrastra actividades aquí</div>
                     )}
                   </div>
-
-                  <div className="px-2 pb-2 flex-shrink-0">
-                    <button onClick={() => openCreate(mod.id)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:bg-purple-100 bg-purple-50 text-purple-600 border border-purple-200">
-                      <Plus size={13} /> Añadir actividad
-                    </button>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {groupCourses.length === 0 ? (
+                      <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">No hay cursos asignados a este grupo.</div>
+                    ) : groupCourses.map(({ course, modules: courseModules }) => (
+                      <div key={course.id} className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{course.title}</p>
+                            <p className="text-[11px] text-slate-400 mt-1">{courseModules.length} módulos visibles</p>
+                          </div>
+                          <span className="rounded-full bg-purple-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-purple-700">Curso</span>
+                        </div>
+                        <div className="space-y-3 p-4">
+                          {courseModules.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">No hay módulos activos para este curso.</div>
+                          ) : courseModules.map((module) => {
+                            const moduleActivities = activitiesByModule[module.id] ?? [];
+                            return (
+                              <div key={module.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{module.title}</p>
+                                    <p className="text-[11px] text-slate-500 mt-1">{module.lessons} lecciones · {module.duration}</p>
+                                  </div>
+                                  <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 border border-slate-200">{moduleActivities.length} act.</span>
+                                </div>
+                                <div className="mt-3 space-y-2">
+                                  {moduleActivities.length === 0 ? (
+                                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">Sin actividades</div>
+                                  ) : moduleActivities.slice(0, 3).map((activity) => {
+                                    const student = students.find((item) => item.id === activity.studentId);
+                                    return (
+                                      <div key={activity.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+                                        <div className="flex items-center justify-between gap-3 text-sm">
+                                          <div className="min-w-0">
+                                            <p className="font-semibold text-slate-900 truncate">{activity.title}</p>
+                                            <p className="text-[11px] text-slate-500 truncate">{student?.name ?? 'Sin estudiante'}</p>
+                                          </div>
+                                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">{activity.status}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <div className="mt-3">
+                                  <button onClick={() => openCreate(module.id)} className="flex items-center gap-1.5 rounded-xl bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700">
+                                    <Plus size={12} /> Añadir actividad
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -349,51 +343,40 @@ export const TeacherBoard = () => {
         </div>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
-        title={editingActivity ? 'Editar Actividad' : 'Nueva Actividad'}>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingActivity ? 'Editar Actividad' : 'Nueva Actividad'}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Título</label>
-            <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200" />
+            <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
-            <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200 min-h-[80px] resize-none" />
+            <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 min-h-[90px] resize-none" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Lección</label>
-            <input type="text" value={formLesson} onChange={(e) => setFormLesson(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200" />
+            <input type="text" value={formLesson} onChange={(e) => setFormLesson(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Estudiante</label>
-            <select value={formStudentId} onChange={(e) => setFormStudentId(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200">
+            <select value={formStudentId} onChange={(e) => setFormStudentId(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200">
               <option value="">Seleccionar</option>
-              {myStudents.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} — {s.group}</option>
+              {teacherStudents.map((student) => (
+                <option key={student.id} value={student.id}>{student.name} — {student.group}</option>
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
-              <select value={formStatus} onChange={(e) => setFormStatus(e.target.value as ActivityStatus)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200">
-                {ACTIVITY_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
-              </select>
-              <p className="text-xs text-slate-400 mt-2">El progreso se calcula automáticamente según el estado de la actividad.</p>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
+            <select value={formStatus} onChange={(e) => setFormStatus(e.target.value as ActivityStatus)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200">
+              {ACTIVITY_STATUSES.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setModalOpen(false)}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all border border-slate-200 text-slate-600">Cancelar</button>
-            <button onClick={handleSubmit}
-              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-br from-purple-600 to-blue-600 hover:opacity-90 transition-all">
-              {editingActivity ? 'Guardar' : 'Crear'}
-            </button>
+            <button onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
+            <button onClick={handleSubmit} className="rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">{editingActivity ? 'Guardar' : 'Crear'}</button>
           </div>
         </div>
       </Modal>

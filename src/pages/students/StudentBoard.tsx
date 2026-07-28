@@ -1,143 +1,148 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle, Clock, AlertCircle, Circle, FileText, Lock, Unlock, LayoutGrid } from 'lucide-react';
+import { AlertTriangle, BookOpen, Building2, LayoutGrid, Lock, Unlock } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useActivityStore from '../../store/activityStore';
 import useStudentStore from '../../store/studentStore';
-import { getModulesRequest } from '../../services/moduleService';
+import { getCentersRequest } from '../../services/centerService';
 import { getCoursesRequest } from '../../services/courseService';
 import { getGroupsRequest } from '../../services/groupService';
-import type { Module } from '../../types/module.types';
+import { getModulesRequest } from '../../services/moduleService';
+import type { Activity } from '../../types/activity.types';
+import type { Center } from '../../types/center.types';
 import type { Course } from '../../types/course.types';
-import type { ActivityStatus } from '../../types/activity.types';
-
-const statusIcon: Record<ActivityStatus, React.ReactElement> = {
-  'Aprobada':      <CheckCircle size={14} className="text-emerald-500" />,
-  'En revisión':   <Clock        size={14} className="text-amber-500" />,
-  'En desarrollo': <Circle       size={14} className="text-blue-500" />,
-  'Pendiente':     <AlertCircle  size={14} className="text-slate-400" />,
-};
-
-const statusStyle: Record<ActivityStatus, string> = {
-  'Aprobada':      'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'En revisión':   'bg-amber-50   text-amber-700   border-amber-200',
-  'En desarrollo': 'bg-blue-50    text-blue-700    border-blue-200',
-  'Pendiente':     'bg-slate-50   text-slate-500   border-slate-200',
-};
+import type { Group } from '../../types/group.types';
+import type { Module } from '../../types/module.types';
 
 export const StudentBoard = () => {
   const user = useAuthStore((s) => s.user);
   const activities = useActivityStore((s) => s.activities);
   const loadByStudent = useActivityStore((s) => s.loadByStudent);
   const students = useStudentStore((s) => s.students);
+  const loadStudents = useStudentStore((s) => s.loadStudents);
 
   const [modules, setModules] = useState<Module[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [groups, setGroups] = useState<Array<{ id: string; name: string; programs?: Array<{ program: string }> }>>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Encontrar el estudiante actual por email
   const currentStudent = useMemo(() => {
+    if (user?.studentId) {
+      return students.find((student) => student.id === user.studentId) ?? null;
+    }
     if (!user?.email) return null;
-    return students.find((s) => s.email.toLowerCase() === user.email.toLowerCase());
-  }, [user?.email, students]);
+    return students.find((student) => student.email.toLowerCase() === user.email.toLowerCase()) ?? null;
+  }, [students, user?.email, user?.studentId]);
 
-  // Cargar datos
+  const currentGroup = useMemo(() => {
+    if (!currentStudent) return null;
+    return groups.find((group) => group.name === currentStudent.group) ?? null;
+  }, [currentStudent, groups]);
+
+  const currentCenter = useMemo(() => {
+    if (currentStudent?.centerId) {
+      return centers.find((center) => center.id === currentStudent.centerId) ?? null;
+    }
+    if (!currentGroup) return null;
+    return centers.find((center) => center.id === currentGroup.centerId) ?? null;
+  }, [currentGroup, currentStudent?.centerId, centers]);
+
   useEffect(() => {
     const load = async () => {
+      setLoadError(null);
       try {
-        const [modulesData, coursesData, groupsData] = await Promise.all([
+        const [modulesData, coursesData, groupsData, centersData] = await Promise.all([
           getModulesRequest(),
           getCoursesRequest(),
           getGroupsRequest(),
+          getCentersRequest(),
         ]);
         setModules(modulesData);
         setCourses(coursesData);
-        setGroups(groupsData ?? []);
-      } catch (err) {
-        console.error('Error al cargar datos:', err);
+        setGroups(groupsData);
+        setCenters(centersData);
+      } catch (error) {
+        console.error('No se pudo cargar la estructura del backend', error);
+        setLoadError('No se pudo cargar la estructura del backend. Revisa la conexión con la base de datos.');
       }
     };
+
     load();
+    loadStudents();
     if (currentStudent?.id) {
       loadByStudent(currentStudent.id);
     }
-  }, [currentStudent?.id, loadByStudent]);
+  }, [currentStudent?.id, loadByStudent, loadStudents]);
 
-  // Cursos del estudiante (a través de su grupo)
-  const myCourses = useMemo(() => {
-    if (!currentStudent) return [];
-    const group = groups.find((g) => g.name === currentStudent.group);
-    if (!group) return [];
-    const programs = (group.programs ?? []).map((assignment) => assignment.program);
-    return courses.filter((course) => programs.includes(course.title));
-  }, [courses, currentStudent, groups]);
+  const assignedCourses = useMemo(() => {
+    if (!currentStudent || !currentGroup) return [];
+    return courses.filter((course) => {
+      const title = course.title.toLowerCase();
+      const groupMatch = course.groups.some((groupName) => groupName.toLowerCase() === currentStudent.group.toLowerCase());
+      const programMatch = currentGroup.programs.some((assignment) => title.includes(assignment.program.toLowerCase()));
+      return groupMatch || programMatch;
+    });
+  }, [courses, currentGroup, currentStudent]);
 
-  // Módulos publicados de mis cursos
-  const myModules = useMemo(() => {
-    const courseTitles = myCourses.map((c) => c.title);
-    return modules.filter((m) => courseTitles.includes(m.course) && m.status === 'Activo');
-  }, [modules, myCourses]);
+  const assignedModules = useMemo(() => {
+    const courseTitles = assignedCourses.map((course) => course.title);
+    return modules.filter((module) => courseTitles.includes(module.course) && module.status === 'Activo');
+  }, [assignedCourses, modules]);
 
-  // Módulos agrupados por curso
   const modulesByCourse = useMemo(() => {
     const map: Record<string, Module[]> = {};
-    myModules.forEach((mod) => {
-      if (!map[mod.course]) map[mod.course] = [];
-      map[mod.course].push(mod);
+    assignedModules.forEach((module) => {
+      if (!map[module.course]) map[module.course] = [];
+      map[module.course].push(module);
     });
     return map;
-  }, [myModules]);
+  }, [assignedModules]);
 
-  // Mis actividades
   const myActivities = useMemo(() => {
     if (!currentStudent?.id) return [];
-    return activities.filter((a) => a.studentId === currentStudent.id);
+    return activities.filter((activity) => activity.studentId === currentStudent.id);
   }, [activities, currentStudent?.id]);
 
-  // Actividades por módulo
   const activitiesByModule = useMemo(() => {
-    const map: Record<string, typeof myActivities> = {};
-    myActivities.forEach((a) => {
-      if (!map[a.moduleId]) map[a.moduleId] = [];
-      map[a.moduleId].push(a);
+    const map: Record<string, Activity[]> = {};
+    myActivities.forEach((activity) => {
+      if (!map[activity.moduleId]) map[activity.moduleId] = [];
+      map[activity.moduleId].push(activity);
     });
     return map;
   }, [myActivities]);
 
-  // Módulos desbloqueados (el anterior debe tener todas las actividades aprobadas)
-  const isModuleUnlocked = useMemo(() => {
+  const unlockedModules = useMemo(() => {
     const unlocked: Record<string, boolean> = {};
-    Object.entries(modulesByCourse).forEach(([, courseModules]) => {
-      courseModules.forEach((mod, index) => {
+    Object.values(modulesByCourse).forEach((courseModules) => {
+      courseModules.forEach((module, index) => {
         if (index === 0) {
-          unlocked[mod.id] = true;
+          unlocked[module.id] = true;
         } else {
-          const prevMod = courseModules[index - 1];
-          const prevActivities = activitiesByModule[prevMod.id] ?? [];
-          const allApproved = prevActivities.length > 0 && prevActivities.every((a) => a.status === 'Aprobada');
-          unlocked[mod.id] = allApproved;
+          const prev = courseModules[index - 1];
+          const prevActivities = activitiesByModule[prev.id] ?? [];
+          unlocked[module.id] = prevActivities.length > 0 && prevActivities.every((activity) => activity.status === 'Aprobada');
         }
       });
     });
     return unlocked;
-  }, [modulesByCourse, activitiesByModule]);
+  }, [activitiesByModule, modulesByCourse]);
 
   const stats = useMemo(() => ({
     total: myActivities.length,
-    pendiente: myActivities.filter((a) => a.status === 'Pendiente').length,
-    enRevision: myActivities.filter((a) => a.status === 'En revisión').length,
-    aprobada: myActivities.filter((a) => a.status === 'Aprobada').length,
-    progress: myActivities.length > 0
-      ? Math.round(myActivities.reduce((sum, a) => sum + a.progress, 0) / myActivities.length)
-      : 0,
+    pendiente: myActivities.filter((activity) => activity.status === 'Pendiente').length,
+    enRevision: myActivities.filter((activity) => activity.status === 'En revisión').length,
+    aprobada: myActivities.filter((activity) => activity.status === 'Aprobada').length,
+    progress: myActivities.length > 0 ? Math.round(myActivities.reduce((sum, activity) => sum + activity.progress, 0) / myActivities.length) : 0,
   }), [myActivities]);
 
   if (!currentStudent) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-900">No se encontró tu perfil de estudiante</p>
-          <p className="text-xs mt-1 text-slate-400">Contacta al administrador para asignarte a un grupo.</p>
+          <p className="text-sm font-semibold text-slate-900">No se encontró tu perfil de estudiante.</p>
+          <p className="text-xs mt-1 text-slate-400">Tu usuario debe estar ligado a un estudiante real en la base de datos.</p>
         </div>
       </div>
     );
@@ -145,14 +150,18 @@ export const StudentBoard = () => {
 
   return (
     <div className="h-full flex flex-col gap-4 min-h-0">
-      <div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
-          <LayoutGrid size={22} className="text-purple-600" />
-          Mi Tablero de Trabajo
+          <Building2 size={22} className="text-purple-600" />
+          Mi Tablero
         </h1>
-        <p className="text-xs mt-0.5 text-slate-400">
-          {user?.name?.split(' ')[0] ?? 'Estudiante'} — Grupo: {currentStudent.group}
-        </p>
+        <p className="text-xs mt-1 text-slate-500">Centro: {currentCenter?.name ?? 'No asignado'} · Grupo: {currentStudent.group || 'No asignado'}</p>
+        {loadError && (
+          <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <AlertTriangle size={16} className="mt-0.5" />
+            <p>{loadError}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -161,91 +170,77 @@ export const StudentBoard = () => {
           { label: 'Actividades', value: stats.total, color: '#0f172a' },
           { label: 'Pendientes', value: stats.pendiente, color: '#f59e0b' },
           { label: 'Aprobadas', value: stats.aprobada, color: '#059669' },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl p-3 border border-slate-100 text-center">
-            <p className="text-xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-[11px] font-medium mt-0.5 text-slate-400">{s.label}</p>
+        ].map((item) => (
+          <div key={item.label} className="rounded-3xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+            <p className="text-2xl font-extrabold" style={{ color: item.color }}>{item.value}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400 mt-1">{item.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-x-auto">
-        <div className="flex gap-4 h-full min-w-max pb-2">
-          {Object.entries(modulesByCourse).length === 0 ? (
-            <div className="flex items-center justify-center w-full">
-              <div className="text-center py-16 text-slate-400">
-                <BookOpen size={36} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm font-medium">No hay cursos asignados a tu grupo</p>
-              </div>
-            </div>
-          ) : (
-            Object.entries(modulesByCourse).map(([courseTitle, courseModules]) => (
-              <div key={courseTitle} className="w-80 flex flex-col rounded-2xl flex-shrink-0 bg-slate-100 border border-slate-200" style={{ maxHeight: '100%' }}>
-                <div className="px-3 py-3 flex-shrink-0 border-b border-slate-200/50">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-purple-600 flex-shrink-0" />
-                    <h2 className="text-sm font-bold text-slate-900 truncate">{courseTitle}</h2>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{courseModules.length} módulos</p>
+      {!currentGroup ? (
+        <div className="flex-1 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <p className="text-sm font-semibold">Tu estudiante no tiene grupo asignado.</p>
+          <p className="text-xs mt-2">El tablero solo se mostrará cuando exista un grupo y un centro vinculado a tu cuenta.</p>
+        </div>
+      ) : Object.keys(modulesByCourse).length === 0 ? (
+        <div className="flex-1 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <BookOpen size={36} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-semibold">No hay cursos o módulos asignados a tu grupo.</p>
+          <p className="text-xs mt-2">Revisa que el grupo tenga cursos y módulos vinculados en la organización.</p>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-x-auto">
+          <div className="flex gap-4 pb-4 min-w-[1100px]">
+            {Object.entries(modulesByCourse).map(([courseTitle, courseModules]) => (
+              <div key={courseTitle} className="w-[26rem] flex flex-col rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
+                <div className="rounded-t-3xl border-b border-slate-200 bg-white px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Curso</p>
+                  <h2 className="mt-2 text-lg font-semibold text-slate-900">{courseTitle}</h2>
+                  <p className="text-[11px] text-slate-400 mt-1">{courseModules.length} módulos activos</p>
                 </div>
-                <div className="px-2 pb-2 flex-1 overflow-y-auto space-y-2 pt-2">
-                  {courseModules.map((mod) => {
-                    const modActivities = activitiesByModule[mod.id] ?? [];
-                    const unlocked = isModuleUnlocked[mod.id] ?? false;
-                    const allApproved = modActivities.length > 0 && modActivities.every((a) => a.status === 'Aprobada');
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {courseModules.map((module) => {
+                    const moduleActivities = activitiesByModule[module.id] ?? [];
+                    const unlocked = unlockedModules[module.id] ?? false;
                     return (
-                      <div key={mod.id} className={`rounded-xl border transition-all ${unlocked ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-200/50 opacity-60'}`}>
-                        <div className="px-3 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {unlocked ? (
-                              allApproved ? <CheckCircle size={14} className="text-emerald-500 flex-shrink-0" />
-                                : <Unlock size={14} className="text-purple-500 flex-shrink-0" />
-                            ) : <Lock size={14} className="text-slate-300 flex-shrink-0" />}
-                            <div className="min-w-0">
-                              <p className={`text-xs font-semibold truncate ${unlocked ? 'text-slate-900' : 'text-slate-400'}`}>{mod.title}</p>
-                              <p className="text-[10px] text-slate-400">{mod.lessons} lecciones</p>
+                      <div key={module.id} className={`rounded-3xl border ${unlocked ? 'border-slate-200 bg-white' : 'border-slate-200/70 bg-slate-100 opacity-80'}`}>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{module.title}</p>
+                              <p className="text-[11px] text-slate-500 mt-1">{module.lessons} lecciones · {module.duration}</p>
                             </div>
+                            {unlocked ? <Unlock size={14} className="text-purple-500" /> : <Lock size={14} className="text-slate-400" />}
                           </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 flex-shrink-0 ml-2">{modActivities.length}</span>
-                        </div>
-                        {unlocked && modActivities.length > 0 && (
-                          <div className="px-3 pb-3 space-y-1.5">
-                            {modActivities.map((activity) => (
-                              <div key={activity.id} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50/50">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      {statusIcon[activity.status]}
-                                      <p className="text-xs font-semibold text-slate-900 truncate">{activity.title}</p>
-                                    </div>
-                                    {activity.lesson && <p className="text-[10px] text-purple-600 mt-0.5">📖 {activity.lesson}</p>}
-                                    {activity.description && <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">{activity.description}</p>}
+                          <div className="mt-4 space-y-2">
+                            {moduleActivities.length === 0 ? (
+                              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">Sin actividades en este módulo.</div>
+                            ) : moduleActivities.map((activity) => (
+                              <div key={activity.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-slate-900 truncate">{activity.title}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{activity.lesson}</p>
                                   </div>
-                                  <div className="text-right flex-shrink-0"><p className="text-xs font-bold text-purple-600">{activity.progress}%</p></div>
-                                </div>
-                                <div className="mt-1.5 flex items-center justify-between">
-                                  <span className={`text-[8px] font-bold uppercase px-1 py-0.5 rounded-full border ${statusStyle[activity.status]}`}>{activity.status}</span>
-                                  {activity.attachmentName && <span className="text-[9px] text-slate-400 flex items-center gap-0.5"><FileText size={9} /> {activity.attachmentName}</span>}
+                                  <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">{activity.status}</span>
                                 </div>
                               </div>
                             ))}
                           </div>
-                        )}
-                        {unlocked && modActivities.length === 0 && (
-                          <div className="px-3 pb-3"><div className="rounded-lg border border-dashed border-slate-300 py-4 text-center text-[10px] text-slate-400">Sin actividades</div></div>
-                        )}
-                        {!unlocked && (
-                          <div className="px-3 pb-3"><div className="rounded-lg bg-slate-100 py-3 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1"><Lock size={10} /> Completa el módulo anterior</div></div>
-                        )}
+                          {!unlocked && (
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-100 p-3 text-sm text-slate-500">Este módulo está bloqueado hasta aprobar el anterior.</div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

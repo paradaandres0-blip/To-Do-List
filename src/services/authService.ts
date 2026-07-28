@@ -1,5 +1,5 @@
 import api from './api';
-import { STORAGE_KEYS, AVATAR_CONFIG, TIMEOUTS } from '../constants/config';
+import { AVATAR_CONFIG } from '../constants/config';
 import { normalizeRole } from '../utils/roleRouting';
 
 // ── Tipos ──
@@ -43,8 +43,6 @@ export interface RefreshResponse {
   token: string;
 }
 
-const IS_MOCK = import.meta.env.VITE_AUTH_MODE === 'mock';
-
 const normalizeAuthUser = (user: BackendAuthUser): AuthUser => {
   const role = normalizeRole(user.role) ?? 'STUDENT';
   return {
@@ -53,26 +51,10 @@ const normalizeAuthUser = (user: BackendAuthUser): AuthUser => {
   };
 };
 
-const readPersistedUser = (): AuthUser | null => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.auth);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { state?: { user?: AuthUser } };
-    return parsed.state?.user ?? null;
-  } catch {
-    return null;
-  }
-};
-
 // ────────────────────────────────────────────
 // POST /auth/login
 // ────────────────────────────────────────────
 export const loginRequest = async (payload: LoginPayload): Promise<LoginResponse> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
-    throw { response: { data: { message: 'El modo mock está desactivado para este flujo. Usa el backend real.' } } };
-  }
-
   const { data } = await api.post<{ token: string; refreshToken?: string; user: BackendAuthUser }>('/auth/login', payload);
   return {
     token: data.token,
@@ -94,7 +76,6 @@ export const verifyPasswordRequest = async (email: string, password: string): Pr
 // POST /auth/logout
 // ────────────────────────────────────────────
 export const logoutRequest = async (): Promise<void> => {
-  if (IS_MOCK) return;
   try {
     await api.post('/auth/logout');
   } catch {
@@ -106,16 +87,6 @@ export const logoutRequest = async (): Promise<void> => {
 // GET /auth/me  — refrescar datos del usuario
 // ────────────────────────────────────────────
 export const getMeRequest = async (): Promise<AuthUser> => {
-  if (IS_MOCK) {
-    const persisted = readPersistedUser();
-    if (persisted) return persisted;
-    return {
-      id: 'demo-admin',
-      name: 'Administrador',
-      email: 'admin@workflow.academy',
-      role: 'ADMIN',
-    };
-  }
   const { data } = await api.get<{ success: boolean; data: BackendAuthUser }>('/auth/me');
   return normalizeAuthUser(data.data);
 };
@@ -124,11 +95,6 @@ export const getMeRequest = async (): Promise<AuthUser> => {
 // POST /auth/refresh  — obtener nuevo access token
 // ────────────────────────────────────────────
 export const refreshRequest = async (refreshToken: string): Promise<RefreshResponse> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
-    return { token: 'mock-jwt-token-refreshed-' + Date.now() };
-  }
-
   const { data } = await api.post<RefreshResponse>('/auth/refresh', { refreshToken });
   return data;
 };
@@ -137,18 +103,6 @@ export const refreshRequest = async (refreshToken: string): Promise<RefreshRespo
 // PATCH /users/me  — actualizar datos del usuario
 // ────────────────────────────────────────────
 export const updateProfileRequest = async (payload: Partial<AuthUser>): Promise<AuthUser> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    const base = readPersistedUser();
-    return base ? { ...base, ...payload } : {
-      id: 'demo-admin',
-      name: 'Administrador',
-      email: 'admin@workflow.academy',
-      role: 'ADMIN',
-      ...payload,
-    };
-  }
-
   const { data } = await api.patch<AuthUser>('/users/me', payload);
   return data;
 };
@@ -162,14 +116,6 @@ export interface ChangePasswordPayload {
 }
 
 export const changePasswordRequest = async (payload: ChangePasswordPayload): Promise<void> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    if (payload.currentPassword.length < 6) {
-      throw { response: { data: { message: 'Contraseña actual incorrecta.' } } };
-    }
-    return;
-  }
-
   await api.patch('/auth/change-password', payload);
 };
 
@@ -177,10 +123,6 @@ export const changePasswordRequest = async (payload: ChangePasswordPayload): Pro
 // POST /auth/forgot-password  — solicitar link de recuperación
 // ────────────────────────────────────────────
 export const forgotRequest = async (email: string): Promise<{ message: string }> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    return { message: 'Si el correo existe, recibirás un enlace en breve.' };
-  }
   const { data } = await api.post<{ message: string }>('/auth/forgot-password', { email });
   return data;
 };
@@ -189,10 +131,6 @@ export const forgotRequest = async (email: string): Promise<{ message: string }>
 // POST /auth/reset-password  — restablecer contraseña con token
 // ────────────────────────────────────────────
 export const resetRequest = async (token: string, password: string): Promise<{ message: string }> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    return { message: 'Contraseña restablecida correctamente.' };
-  }
   const { data } = await api.post<{ message: string }>('/auth/reset-password', { token, password });
   return data;
 };
@@ -202,10 +140,6 @@ export const resetRequest = async (token: string, password: string): Promise<{ m
 // ────────────────────────────────────────────
 export interface RegisterPayload { name: string; email: string; password: string; }
 export const registerRequest = async (payload: RegisterPayload): Promise<{ message: string }> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.long));
-    return { message: 'Solicitud de acceso enviada. Un administrador revisará tu cuenta.' };
-  }
   const { data } = await api.post<{ message: string }>('/auth/register', payload);
   return data;
 };
@@ -221,10 +155,6 @@ export interface NotificationPrefs {
 }
 
 export const saveNotificationsRequest = async (prefs: NotificationPrefs): Promise<void> => {
-  if (IS_MOCK) {
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.short));
-    return;
-  }
   await api.patch('/users/me/notifications', prefs);
 };
 
@@ -261,18 +191,6 @@ export const uploadAvatarRequest = async (file: File): Promise<{ avatarUrl: stri
   const validationError = validateAvatarFile(file);
   if (validationError) {
     throw new Error(validationError.message);
-  }
-
-  if (IS_MOCK) {
-    const { getCompressedFile } = await import('../utils/imageCompression');
-    const compressed = await getCompressedFile(file);
-    await new Promise((r) => setTimeout(r, TIMEOUTS.mock.medium));
-    const url = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(compressed);
-    });
-    return { avatarUrl: url };
   }
 
   const { getCompressedFile } = await import('../utils/imageCompression');

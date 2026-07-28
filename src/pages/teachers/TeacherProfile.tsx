@@ -11,8 +11,7 @@ import useStudentStore from '../../store/studentStore';
 
 /**
  * Vista de perfil de docente.
- * Hoy consume el mock/API GET /teachers/:id.
- * Cuando exista PostgreSQL, el mismo endpoint devolverá la fila de `teachers`.
+ * Consume el endpoint real GET /teachers/:id.
  */
 export const TeacherProfile = () => {
   const { id } = useParams<{ id: string }>();

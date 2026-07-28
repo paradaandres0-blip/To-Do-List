@@ -59,12 +59,6 @@ export const PAGINATION = {
 // ── Timeouts ──
 export const TIMEOUTS = {
   api: 10_000,
-  mock: {
-    short: 300,
-    medium: 400,
-    long: 600,
-    extraLong: 800,
-  },
 } as const;
 
 // ── Validation ──
@@ -96,7 +90,6 @@ export const APP_INFO = {
 
 // ── Feature Flags ──
 export const FEATURES = {
-  mockMode: import.meta.env.VITE_AUTH_MODE === 'mock',
   enableNotifications: true,
   enableReports: true,
   enableExport: true,

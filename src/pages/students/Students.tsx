@@ -1,34 +1,33 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, UserPlus, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Search, Filter, Pencil, Trash2, X, ChevronDown, Mail, Phone, Award, Check, XCircle, AlertTriangle, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { studentAssignmentSchema, studentSchema } from '../../schemas/student.schema';
+import { studentSchema } from '../../schemas/student.schema';
 import { Pagination } from '../../components/common/Pagination/Pagination';
-import { getPasswordForAccount } from '../../services/mockDb';
 import { getGroupsRequest } from '../../services/groupService';
 import { getCentersRequest } from '../../services/centerService';
+import {
+  createStudentRequest,
+  deleteStudentRequest,
+  updateStudentRequest,
+} from '../../services/studentService';
 import useStudentStore from '../../store/studentStore';
 import type { Student } from '../../types/student.types';
 
-type StudentStatus = Student['status'];
+type StudentStatus = 'Activo' | 'Inactivo';
 
 interface StudentForm {
   name: string; email: string; phone: string;
-  centerId: string; group: string; status: StudentStatus;
-}
-interface AssignForm {
-  group: string;
+  centerId: string; group: string; status: StudentStatus; password?: string;
 }
 
 // PROGRAMS and GROUPS will be derived inside the component so they reflect runtime changes
-const STATUSES: StudentStatus[] = ['Activo','Inactivo','Suspendido','Pendiente'];
+const STATUSES: StudentStatus[] = ['Activo','Inactivo'];
 
 const statusStyle: Record<StudentStatus, string> = {
-  Activo:     'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Inactivo:   'bg-slate-50   text-slate-500   border-slate-200',
-  Suspendido: 'bg-red-50     text-red-600     border-red-200',
-  Pendiente:  'bg-amber-50   text-amber-700   border-amber-200',
+  Activo:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Inactivo: 'bg-slate-50 text-slate-500 border-slate-200',
 };
 
 const Modal = ({ isOpen, onClose, title, children }: { isOpen:boolean; onClose:()=>void; title:string; children:React.ReactNode }) => {
@@ -58,7 +57,6 @@ export const Students = () => {
   const getPendingRequests = useStudentStore((s) => s.getPendingRequests);
   const acceptRequest = useStudentStore((s) => s.acceptRequest);
   const rejectRequest = useStudentStore((s) => s.rejectRequest);
-  const assignToGroup = useStudentStore((s) => s.assignToGroup);
 
   const [search,       setSearch]       = useState('');
   const [filterStatus, setFilterStatus] = useState<StudentStatus | 'Todos'>('Todos');
@@ -67,9 +65,8 @@ export const Students = () => {
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editing,      setEditing]      = useState<Student | null>(null);
   const [deleteId,     setDeleteId]     = useState<string | null>(null);
-  const [viewStudent,  setViewStudent]  = useState<Student | null>(null);
-  const [assignModal,  setAssignModal]  = useState<Student | null>(null);
-  const [currentPage,  setCurrentPage]  = useState(1);
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [passwordModal, setPasswordModal] = useState(false);
@@ -87,11 +84,6 @@ export const Students = () => {
   [groups, selectedCenterId]);
 
   const selectedCenter = useMemo(() => centers.find((center) => center.id === selectedCenterId), [centers, selectedCenterId]);
-  const assignableGroups = useMemo(() => {
-    if (!assignModal) return groups.filter((group) => group.active !== false);
-    const centerId = groups.find((group) => group.name === assignModal.group)?.centerId;
-    return groups.filter((group) => group.active !== false && (!centerId || group.centerId === centerId));
-  }, [assignModal, groups]);
 
   useEffect(() => {
     if (selectedCenterId && selectedGroup) {
@@ -99,10 +91,6 @@ export const Students = () => {
       if (!stillValid) setValue('group', '');
     }
   }, [availableGroups, selectedCenterId, selectedGroup, setValue]);
-
-  const { register: registerAssign, handleSubmit: handleAssign, reset: resetAssign, formState: { errors: assignErrors } } = useForm<AssignForm>({
-    resolver: zodResolver(studentAssignmentSchema),
-  });
 
   useEffect(() => {
     if (students.length === 0) {
@@ -123,13 +111,16 @@ export const Students = () => {
     loadReferenceData();
   }, []);
 
+  const getUiStatus = (status: string) => (status === 'Activo' ? 'Activo' : 'Inactivo');
+
   const PROGRAMS = useMemo(() => Array.from(new Set(groups.flatMap((g) => (g.programs ?? []).map((assignment) => assignment.program)).filter(Boolean))), [groups]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return students.filter((s) => {
+      const status = getUiStatus(s.status);
       return (s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.program.toLowerCase().includes(q))
-        && (filterStatus === 'Todos' || s.status === filterStatus)
+        && (filterStatus === 'Todos' || status === filterStatus)
         && (filterProg   === 'Todos' || s.program === filterProg);
     });
   }, [students, search, filterStatus, filterProg]);
@@ -161,25 +152,8 @@ export const Students = () => {
     setValue('phone', s.phone ?? '');
     setValue('centerId', centerId);
     setValue('group', s.group);
-    setValue('status', s.status);
+    setValue('status', getUiStatus(s.status));
     setModalOpen(true);
-  };
-  const openAssign = (s: Student) => {
-    setAssignModal(s);
-    resetAssign({ group: s.group });
-  };
-
-  const onAssign = async (data: AssignForm) => {
-    if (assignModal) {
-      try {
-        await assignToGroup(assignModal.id, data.group);
-        setAssignModal(null);
-        resetAssign();
-      } catch (err) {
-        console.error('Error al asignar:', err);
-        alert('Error al asignar el grupo');
-      }
-    }
   };
 
   const onSubmit = async (data: StudentForm) => {
@@ -193,21 +167,25 @@ export const Students = () => {
       }
 
       if (editing) {
-        await useStudentStore.getState().updateStudent(editing.id, {
+        const updatePayload: Record<string, unknown> = {
           name: payload.name,
           email: payload.email,
           phone: payload.phone,
           status: payload.status,
           group: payload.group,
-        });
+        };
+        if (payload.password) {
+          updatePayload.password = payload.password;
+        }
+        await updateStudentRequest(editing.id, updatePayload as any);
+        await loadStudents();
       } else {
-        const { createStudentRequest } = await import('../../services/studentService');
         const created = await createStudentRequest(payload);
         await loadStudents();
-        const pwd = getPasswordForAccount(created.email);
-        if (pwd) {
-          setCreatedEmail(created.email);
-          setCreatedPassword(pwd);
+        const maybePwd = (created as any).generatedPassword;
+        if (maybePwd) {
+          setCreatedEmail((created as any).email);
+          setCreatedPassword(maybePwd);
           setPasswordModal(true);
         }
       }
@@ -222,7 +200,6 @@ export const Students = () => {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      const { deleteStudentRequest } = await import('../../services/studentService');
       await deleteStudentRequest(deleteId);
       await loadStudents();
     } catch (err) {
@@ -251,10 +228,8 @@ export const Students = () => {
 
   const counts = useMemo(() => ({
     total: students.length,
-    activos: students.filter((s) => s.status === 'Activo').length,
-    inactivos: students.filter((s) => s.status === 'Inactivo').length,
-    suspendidos: students.filter((s) => s.status === 'Suspendido').length,
-    pendientes: students.filter((s) => s.status === 'Pendiente').length,
+    activos: students.filter((s) => getUiStatus(s.status) === 'Activo').length,
+    inactivos: students.filter((s) => getUiStatus(s.status) === 'Inactivo').length,
   }), [students]);
 
   const ic = () => `w-full px-3 py-2.5 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all`;
@@ -280,11 +255,9 @@ export const Students = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
-          { label:'Total',       value: counts.total,       color:'#7c3aed' },
-          { label:'Activos',     value: counts.activos,     color:'#059669' },
-          { label:'Inactivos',   value: counts.inactivos,   color:'#94a3b8' },
-          { label:'Suspendidos', value: counts.suspendidos, color:'#ef4444' },
-          { label:'Pendientes', value: counts.pendientes,  color:'#f59e0b' },
+          { label:'Total',     value: counts.total,     color:'#7c3aed' },
+          { label:'Activos',   value: counts.activos,   color:'#059669' },
+          { label:'Inactivos', value: counts.inactivos, color:'#94a3b8' },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-4 text-center"
             style={{ border:'1px solid #f1f5f9', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -420,13 +393,14 @@ export const Students = () => {
                   </div>
                 </td>
                 <td className="px-5 py-4">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[s.status]}`}>{s.status}</span>
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[getUiStatus(s.status)]}`}>{getUiStatus(s.status)}</span>
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={(e) => { e.stopPropagation(); openAssign(s); }}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-                      <UserPlus size={13} style={{ color:'#3b82f6' }} />
+                    <button onClick={(e) => { e.stopPropagation(); setViewStudent(s); }}
+                      title="Ver entorno"
+                      className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                      <Eye size={13} style={{ color:'#0f172a' }} />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); openEdit(s); }}
                       className="p-1.5 rounded-lg hover:bg-purple-50 transition-colors">
@@ -473,7 +447,7 @@ export const Students = () => {
               </div>
               <div>
                 <h3 className="text-lg font-extrabold" style={{ color:'#0f172a' }}>{viewStudent.name}</h3>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[viewStudent.status]}`}>{viewStudent.status}</span>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${statusStyle[getUiStatus(viewStudent.status)]}`}>{getUiStatus(viewStudent.status)}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -540,6 +514,36 @@ export const Students = () => {
               {...register('phone', { required:'Obligatorio' })} />
             {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
           </div>
+            {/* Password (creation + edit). For edit we allow setting a new password or generating one. */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color:'#334155' }}>Contraseña</label>
+              <div className="flex gap-2">
+                <input type="password" placeholder="Mínimo 6 caracteres" className={ic()} style={is(!!errors.password)}
+                  {...register('password')} />
+                {editing && (
+                  <button type="button" onClick={async () => {
+                    try {
+                      const { resetStudentPasswordRequest } = await import('../../services/studentService');
+                      const pwd = await resetStudentPasswordRequest(editing.id);
+                      setValue('password', pwd);
+                      setCreatedEmail(editing.email);
+                      setCreatedPassword(pwd);
+                      setPasswordModal(true);
+                    } catch (err) {
+                      console.error('Error al generar contraseña:', err);
+                      alert('No se pudo generar la contraseña');
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg text-sm font-medium" style={{ border:'1px solid #e2e8f0' }}>Generar</button>
+                )}
+              </div>
+              <p className="text-xs" style={{ color: '#64748b' }}>
+                {editing
+                  ? 'Dejar vacío para mantener la contraseña actual. Generar crea una nueva y reemplaza la anterior.'
+                  : 'Contraseña que el alumno usará para iniciar sesión.'}
+              </p>
+              {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+            </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium" style={{ color:'#334155' }}>Centro / Organización</label>
@@ -632,36 +636,6 @@ export const Students = () => {
         </div>
       </Modal>
 
-      {/* Modal asignar a grupo/programa */}
-      <Modal isOpen={!!assignModal} onClose={() => { setAssignModal(null); resetAssign(); }} title="Asignar a Grupo/Programa">
-        {assignModal && (
-          <form onSubmit={handleAssign(onAssign)} className="space-y-4">
-            <div className="p-3 rounded-xl" style={{ background:'#f8fafc' }}>
-              <p className="text-sm font-semibold" style={{ color:'#0f172a' }}>{assignModal.name}</p>
-              <p className="text-xs" style={{ color:'#94a3b8' }}>{assignModal.email}</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color:'#334155' }}>Grupo</label>
-              <select className={ic()} style={is(!!assignErrors.group)}
-                {...registerAssign('group', { required:'Obligatorio' })}>
-                <option value="">Seleccionar...</option>
-                {assignableGroups.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
-              </select>
-              {assignErrors.group && <p className="text-xs text-red-500">{assignErrors.group.message}</p>}
-            </div>
-            <div className="flex gap-3 justify-end pt-2">
-              <button type="button" onClick={() => { setAssignModal(null); resetAssign(); }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all"
-                style={{ border:'1px solid #e2e8f0', color:'#475569' }}>Cancelar</button>
-              <button type="submit"
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all"
-                style={{ background:'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
-                Asignar
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
     </div>
   );
 };
