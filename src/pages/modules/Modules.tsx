@@ -6,6 +6,7 @@ import { Modal } from '../../components/common/Modal/Modal';
 import { useForm } from 'react-hook-form';
 import type { Module } from '../../types/module.types';
 import type { Course } from '../../types/course.types';
+import type { Group } from '../../types/group.types';
 import type { Teacher } from '../../types/teacher.types';
 import type { Student } from '../../types/student.types';
 import type { Activity, ActivityStatus } from '../../types/activity.types';
@@ -16,6 +17,7 @@ import {
   deleteModuleRequest
 } from '../../services/moduleService';
 import { getCoursesRequest } from '../../services/courseService';
+import { getGroupsRequest } from '../../services/groupService';
 import { getTeachersRequest } from '../../services/teacherService';
 import { getStudentsRequest } from '../../services/studentService';
 import useActivityStore from '../../store/activityStore';
@@ -33,6 +35,7 @@ export const Modules = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -47,7 +50,6 @@ export const Modules = () => {
     description: '',
     lesson: '',
     studentId: '',
-    teacherId: '',
     status: 'Pendiente' as ActivityStatus,
   });
 
@@ -72,9 +74,10 @@ export const Modules = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [modulesData, coursesData, teachersData, studentsResponse] = await Promise.all([
-          getModulesRequest(),
+        const [modulesData, coursesData, groupsData, teachersData, studentsResponse] = await Promise.all([
+          getModulesRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user.teacherId } : undefined),
           getCoursesRequest(),
+          getGroupsRequest(),
           getTeachersRequest(1, 1000),
           getStudentsRequest(1, 1000),
         ]);
@@ -82,6 +85,7 @@ export const Modules = () => {
 
         setModules(modulesData);
         setCourses(coursesData);
+        setGroups(groupsData);
         setTeachers(teachersData.data);
         setStudents(Array.isArray(studentsResponse) ? studentsResponse : studentsResponse.data);
       } catch (error) {
@@ -112,11 +116,78 @@ export const Modules = () => {
     }
   }, [editingModule, reset]);
 
+  const normalizeString = (value?: string | null) => value?.trim().toLowerCase() ?? '';
+
+  const teacherGroups = useMemo(() => {
+    if (!user?.teacherId || user.role !== 'INSTRUCTOR') return [];
+    const normalizedUserName = normalizeString(user.name);
+
+    const groupsByMentor = groups.filter((group) =>
+      group.programs.some((program) => normalizeString(program.mentor) === normalizedUserName),
+    );
+
+    const groupsByStudent = groups.filter((group) =>
+      students.some(
+        (student) => student.teacherId === user.teacherId && normalizeString(student.group) === normalizeString(group.name),
+      ),
+    );
+
+    return [...groupsByMentor, ...groupsByStudent].filter(
+      (group, index, self) => self.findIndex((item) => item.id === group.id) === index,
+    );
+  }, [groups, students, user?.name, user?.role, user?.teacherId]);
+
+  const getCenterNameFromTitle = (title?: string | null) => normalizeString(title).split(' - ')[0];
+
+  const isCourseAssignedToGroup = (course: Course, group: Group) => {
+    const title = normalizeString(course.title);
+    const groupName = normalizeString(group.name);
+    const centerName = getCenterNameFromTitle(group.name);
+
+    const groupMatch = course.groups.some((assignedGroup) => normalizeString(assignedGroup) === groupName);
+    const programMatch = group.programs.some((assignment) => {
+      const program = normalizeString(assignment.program);
+      return program.length > 0 && title.includes(program) && title.includes(centerName);
+    });
+
+    return groupMatch || programMatch;
+  };
+
+  const teacherAllowedCourseTitles = useMemo(() => {
+    if (user?.role !== 'INSTRUCTOR') return courses.map((course) => course.title);
+    return courses
+      .filter((course) => teacherGroups.some((group) => isCourseAssignedToGroup(course, group)))
+      .map((course) => course.title);
+  }, [courses, teacherGroups, user?.role]);
+
+  const findAssignedTeacherIdForCourse = (courseTitle: string) => {
+    const normalizedCourse = normalizeString(courseTitle);
+    const assignedTeacher = teachers.find((teacher) => {
+      const normalizedTeacherName = normalizeString(teacher.name);
+      return groups.some((group) => {
+        const centerName = getCenterNameFromTitle(group.name);
+        return group.programs.some((assignment) => {
+          const program = normalizeString(assignment.program);
+          return (
+            program.length > 0 &&
+            normalizedCourse.includes(program) &&
+            normalizedCourse.includes(centerName) &&
+            normalizeString(assignment.mentor) === normalizedTeacherName
+          );
+        });
+      });
+    });
+    return assignedTeacher?.id;
+  };
+
   const moduleProgress = useMemo(() => {
     const progressMap: Record<string, number> = {};
     const moduleActivities: Record<string, number[]> = {};
+    const relevantActivities = user?.role === 'INSTRUCTOR'
+      ? activities.filter((activity) => activity.teacherId === user.teacherId)
+      : activities;
 
-    activities.forEach((activity) => {
+    relevantActivities.forEach((activity) => {
       if (!moduleActivities[activity.moduleId]) {
         moduleActivities[activity.moduleId] = [];
       }
@@ -130,7 +201,7 @@ export const Modules = () => {
     });
 
     return progressMap;
-  }, [activities]);
+  }, [activities, user?.role, user?.teacherId]);
 
   const openModule = (mod: Module) => setActiveModule(mod);
   const closeModule = () => setActiveModule(null);
@@ -150,8 +221,7 @@ export const Modules = () => {
       title: '',
       description: '',
       lesson: '',
-      studentId: students[0]?.id ?? '',
-      teacherId: user?.teacherId ?? teachers[0]?.id ?? '',
+      studentId: user?.role === 'INSTRUCTOR' ? (students[0]?.id ?? '') : '',
       status: 'Pendiente',
     });
     setActivityModalOpen(true);
@@ -164,7 +234,6 @@ export const Modules = () => {
       description: activity.description,
       lesson: activity.lesson ?? '',
       studentId: activity.studentId ?? students[0]?.id ?? '',
-      teacherId: activity.teacherId ?? user?.teacherId ?? teachers[0]?.id ?? '',
       status: activity.status,
     });
     setActivityModalOpen(true);
@@ -172,22 +241,27 @@ export const Modules = () => {
 
   const handleActivitySubmit = async () => {
     if (!activeModule) return;
-    if (!activityForm.title.trim() || !activityForm.studentId) {
-      alert('Debe completar el título y el estudiante asignado.');
+    if (!activityForm.title.trim()) {
+      alert('Debe completar el título.');
       return;
     }
 
-    const payload = {
+    // For admin-created activities at module level we should not assign a specific student.
+    // Only instructors can assign activities to individual students here.
+    const isInstructor = user?.role === 'INSTRUCTOR';
+    const assignedTeacherIdFromModule = (activeModule as Module).assignedTeacherId ?? findAssignedTeacherIdForCourse(activeModule.course);
+    const payload: any = {
       title: activityForm.title.trim(),
       description: activityForm.description.trim(),
       lesson: activityForm.lesson.trim(),
       moduleId: activeModule.id,
-      courseId: activeModule.course,
-      studentId: activityForm.studentId,
-      teacherId: activityForm.teacherId,
+      course: activeModule.course,
       status: activityForm.status,
       progress: mapStatusToProgress(activityForm.status),
+      // Enforce teacher derived from group.programs when available; fallback to current user or existing value
+      teacherId: assignedTeacherIdFromModule ?? user?.teacherId ?? editingActivity?.teacherId,
     };
+    if (isInstructor && activityForm.studentId) payload.studentId = activityForm.studentId;
 
     try {
       if (editingActivity) {
@@ -218,11 +292,12 @@ export const Modules = () => {
     }
   };
 
-  const filtered = modules.filter(
-    (m) =>
+  const filtered = modules
+    .filter((m) => user?.role !== 'INSTRUCTOR' || teacherAllowedCourseTitles.includes(m.course))
+    .filter((m) =>
       m.title.toLowerCase().includes(search.toLowerCase()) ||
       m.course.toLowerCase().includes(search.toLowerCase())
-  );
+    );
 
   const modulesByCourse = useMemo(() => {
     return filtered.reduce<Record<string, Module[]>>((acc, module) => {
@@ -234,11 +309,15 @@ export const Modules = () => {
 
   const activityCountByModule = useMemo(() => {
     const countMap: Record<string, number> = {};
-    activities.forEach((activity) => {
+    const relevantActivities = user?.role === 'INSTRUCTOR'
+      ? activities.filter((activity) => activity.teacherId === user.teacherId)
+      : activities;
+
+    relevantActivities.forEach((activity) => {
       countMap[activity.moduleId] = (countMap[activity.moduleId] ?? 0) + 1;
     });
     return countMap;
-  }, [activities]);
+  }, [activities, user?.role, user?.teacherId]);
 
   const onSubmit = async (data: ModuleFormInputs) => {
     setIsSaving(true);
@@ -468,7 +547,10 @@ export const Modules = () => {
             <div>
               <p className="text-sm font-semibold mb-2">Actividades</p>
               <ul className="space-y-3">
-                {activities.filter((a) => a.moduleId === activeModule.id).map((act) => (
+                {(user?.role === 'INSTRUCTOR'
+                ? activities.filter((a) => a.moduleId === activeModule.id && a.teacherId === user.teacherId)
+                : activities.filter((a) => a.moduleId === activeModule.id)
+              ).map((act) => (
                   <li key={act.id} className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -499,9 +581,8 @@ export const Modules = () => {
                         )}
                       </div>
                     </div>
-                    <div className="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
+                    <div className="mt-3 text-[11px] text-slate-400">
                       <span>{new Date(act.createdAt).toLocaleDateString('es-CO')}</span>
-                      <span>{teachers.find((t) => t.id === act.teacherId)?.name ?? 'Sin docente'}</span>
                     </div>
                   </li>
                 ))}
@@ -558,32 +639,22 @@ export const Modules = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1">Estudiante</label>
-              <select
-                value={activityForm.studentId}
-                onChange={(e) => setActivityForm({ ...activityForm, studentId: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-              >
-                <option value="">Selecciona un estudiante</option>
-                {students.map((student) => (
-                  <option key={student.id} value={student.id}>{student.name} — {student.group}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-800 mb-1">Docente</label>
-              <select
-                value={activityForm.teacherId}
-                onChange={(e) => setActivityForm({ ...activityForm, teacherId: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-              >
-                <option value="">Selecciona un docente</option>
-                {teachers.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                ))}
-              </select>
-            </div>
+            {user?.role === 'INSTRUCTOR' && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1">Estudiante</label>
+                <select
+                  value={activityForm.studentId}
+                  onChange={(e) => setActivityForm({ ...activityForm, studentId: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                >
+                  <option value="">Selecciona un estudiante</option>
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>{student.name} — {student.group}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* Removed teacher label display per UX: teacher names shouldn't appear on activity modal */}
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
             <button

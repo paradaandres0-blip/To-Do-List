@@ -126,8 +126,8 @@ async function main() {
       const teacher = teachers[i % teachers.length];
       await prisma.activity.create({
         data: {
-          title: `Asignación docente: ${teacher.name}`,
-          description: `Docente asignado al módulo ${mod.title}`,
+          title: `Actividad ${i + 1}`,
+          description: `Actividad generada para ${mod.title}`,
           moduleId: mod.id,
           teacherId: teacher.id,
           status: 'PENDIENTE',

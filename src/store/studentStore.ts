@@ -31,7 +31,7 @@ const useStudentStore = create<StudentState>((set, get) => ({
   students: [],
   loadStudents: async () => {
     try {
-      const response = await getStudentsRequest();
+      const response = await getStudentsRequest(1, 1000);
       set({ students: asStudentArray(response?.data ?? response) });
     } catch (error) {
       console.error('No se pudieron cargar los alumnos', error);

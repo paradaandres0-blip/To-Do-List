@@ -1,5 +1,8 @@
+import { useEffect, useMemo } from 'react';
 import { User, Mail, Phone, MapPin, Shield, Camera, Loader } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
+import useActivityStore from '../../store/activityStore';
+import useStudentStore from '../../store/studentStore';
 import { useAvatarUpload } from '../../hooks/useAvatarUpload';
 import { LazyImage } from '../../components/common';
 
@@ -19,6 +22,25 @@ const ROLE_LABELS: Record<string, string> = {
 export const Profile = () => {
   const user = useAuthStore((s) => s.user);
   const { avatarUrl, isUploading, uploadError, inputRef, openFilePicker, handleFileChange } = useAvatarUpload();
+  const activities = useActivityStore((s) => s.activities);
+  const loadByStudent = useActivityStore((s) => s.loadByStudent);
+  const students = useStudentStore((s) => s.students);
+
+  const currentStudent = useMemo(() => {
+    if (!user) return null;
+    return students.find((student) => student.email.toLowerCase() === user.email.toLowerCase()) ?? null;
+  }, [students, user?.email]);
+
+  useEffect(() => {
+    if (currentStudent?.id) {
+      void loadByStudent(currentStudent.id, { group: currentStudent.group, program: currentStudent.program });
+    }
+  }, [currentStudent?.group, currentStudent?.id, currentStudent?.program, loadByStudent]);
+
+  const studentActivities = useMemo(() => {
+    if (!currentStudent) return [];
+    return activities.filter((activity) => activity.studentId === currentStudent.id);
+  }, [activities, currentStudent]);
 
   const initials = user?.name?.charAt(0)?.toUpperCase() ?? 'A';
 
@@ -163,19 +185,52 @@ export const Profile = () => {
             className="bg-white rounded-2xl p-6"
             style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
           >
-            <h3 className="font-bold mb-5" style={{ color: '#0f172a' }}>Actividad Reciente</h3>
-            <div className="space-y-4">
-              {ACTIVITY.map((a, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                  />
-                  <p className="text-sm flex-1" style={{ color: '#334155' }}>{a.action}</p>
-                  <span className="text-xs flex-shrink-0" style={{ color: '#94a3b8' }}>{a.time}</span>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-bold" style={{ color: '#0f172a' }}>Actividad Reciente</h3>
+                <p className="text-sm text-slate-500 mt-1">Aquí verás tus entregas y el estado que el docente asignó.</p>
+              </div>
+              <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-purple-700">
+                {studentActivities.length} actividades
+              </span>
             </div>
+            {studentActivities.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">
+                <p className="font-semibold">Aún no tienes actividades asignadas.</p>
+                <p className="text-xs mt-2">Tu docente verá tus entregas aquí cuando cargues la información.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {studentActivities.map((activity) => (
+                  <div key={activity.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{activity.title}</p>
+                        <p className="text-xs text-slate-500 truncate">{activity.description || 'Sin descripción'}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600 border border-slate-200">
+                          {activity.studentSubmissionStatus ?? 'SIN_INICIAR'}
+                        </span>
+                        <span className="rounded-full bg-purple-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-purple-700 border border-purple-100">
+                          {activity.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 text-[11px] text-slate-500">
+                      <span>Progreso docente: {activity.progress}%</span>
+                      <span>{activity.lesson ? `Lección: ${activity.lesson}` : 'Sin lección'}</span>
+                    </div>
+                    {activity.studentSubmissionText ? (
+                      <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-900">Tu entrega</p>
+                        <p className="mt-1">{activity.studentSubmissionText}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>

@@ -10,8 +10,9 @@ const extractData = <T>(response: { data: ApiResponse<T> | T }): T => {
   return d as T;
 };
 
-export const getModulesRequest = async (): Promise<Module[]> => {
-  const response = await api.get<ApiResponse<Module[]>>('/modules');
+export const getModulesRequest = async (opts?: { teacherId?: string }): Promise<Module[]> => {
+  const q = opts?.teacherId ? `?teacherId=${encodeURIComponent(opts.teacherId)}` : '';
+  const response = await api.get<ApiResponse<Module[]>>(`/modules${q}`);
   return extractData(response);
 };
 

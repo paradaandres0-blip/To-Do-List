@@ -31,6 +31,16 @@ const parseStringArray = (value: unknown): string[] => {
   return [];
 };
 
+const sanitizeActivityTitle = (title: string | null | undefined, fallbackIndex?: number) => {
+  const raw = String(title ?? '').trim();
+  if (!raw) return fallbackIndex ? `Actividad ${fallbackIndex}` : 'Actividad';
+
+  const isTeacherAssignmentTitle = /^(asignación docente|asignacion docente|docente asignado)\s*[:\-]?\s*/i.test(raw);
+  if (!isTeacherAssignmentTitle) return raw;
+
+  return fallbackIndex ? `Actividad ${fallbackIndex}` : 'Actividad';
+};
+
 const mapTeacher = (teacher: any) => ({
   id: teacher.id,
   name: teacher.name,
@@ -137,8 +147,8 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 };
 app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/centers', createCentersRouter());
@@ -194,6 +204,16 @@ app.get('/api/teachers', async (_req, res, next) => {
   try {
     const teachers = await prisma.teacher.findMany({ orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: teachers.map(mapTeacher) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/teachers/:id', async (req, res, next) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({ where: { id: req.params.id } });
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    res.json({ success: true, data: mapTeacher(teacher) });
   } catch (error) {
     next(error);
   }
@@ -464,10 +484,16 @@ app.delete('/api/courses/:id', async (req, res, next) => {
   }
 });
 
-app.get('/api/modules', async (_req, res, next) => {
+app.get('/api/modules', async (req, res, next) => {
   try {
+    const teacherId = req.query.teacherId as string | undefined;
     const modules = await prisma.module.findMany({ orderBy: { createdAt: 'desc' } });
-    const mapped = await Promise.all(modules.map(mapModule));
+    let mapped = await Promise.all(modules.map(mapModule));
+
+    if (teacherId) {
+      mapped = mapped.filter((m) => String(m.assignedTeacherId ?? '') === String(teacherId));
+    }
+
     res.json({ success: true, data: mapped });
   } catch (error) {
     next(error);
@@ -757,16 +783,103 @@ app.get('/api/activities', async (req, res, next) => {
   try {
     const teacherId = req.query.teacherId as string | undefined;
     const studentId = req.query.studentId as string | undefined;
+    const course = req.query.course as string | undefined;
+    const group = req.query.group as string | undefined;
+    const program = req.query.program as string | undefined;
+    const moduleId = req.query.moduleId as string | undefined;
 
     let activities = await prisma.activity.findMany({
       orderBy: { createdAt: 'desc' },
     });
 
+    // Enrich activities: if `course` is missing but `moduleId` exists,
+    // resolve the module -> course name so frontend can match by course/group/program.
+    const moduleIds = Array.from(new Set(activities.map((a) => a.moduleId).filter(Boolean) as string[]));
+    let modulesMap: Record<string, { id: string; courseName?: string }> = {};
+    if (moduleIds.length > 0) {
+      const modules = await prisma.module.findMany({
+        where: { id: { in: moduleIds } },
+        select: { id: true, courseId: true },
+      });
+      const courseIds = Array.from(new Set(modules.map((m) => m.courseId).filter(Boolean) as string[]));
+      const courses = courseIds.length > 0 ? await prisma.course.findMany({ where: { id: { in: courseIds } }, select: { id: true, name: true } }) : [];
+      const courseMap = Object.fromEntries(courses.map((c) => [c.id, c.name]));
+      modulesMap = Object.fromEntries(modules.map((m) => [m.id, { id: m.id, courseName: m.courseId ? courseMap[m.courseId] : '' }]));
+      // apply enrichment
+      activities = activities.map((a) => ({
+        ...a,
+        course: a.course || (a.moduleId ? modulesMap[a.moduleId]?.courseName ?? '' : a.course),
+      }));
+    }
+
+    const resolveAllowedCourseNames = async (groupName?: string, programName?: string): Promise<string[]> => {
+      if (!groupName && !programName) return [];
+
+      const normalizedGroupName = groupName?.trim().toLowerCase() ?? '';
+      const normalizedProgramName = programName?.trim().toLowerCase() ?? '';
+      const centerName = normalizedGroupName.split(' - ')[0]?.trim() ?? '';
+
+      const courses = await prisma.course.findMany({ select: { name: true, groups: true } });
+      return Array.from(
+        new Set(
+          courses
+            .filter((course) => {
+              const title = String(course.name ?? '').toLowerCase();
+              const groupsString = String(course.groups ?? '').toLowerCase();
+
+              const groupMatch = normalizedGroupName.length > 0 && groupsString.includes(normalizedGroupName);
+              const programMatch = normalizedProgramName.length > 0 && title.includes(normalizedProgramName);
+              const centerMatch = centerName.length > 0 && title.includes(centerName);
+
+              if (normalizedGroupName && normalizedProgramName) {
+                return (groupMatch || (programMatch && centerMatch));
+              }
+              if (normalizedGroupName) {
+                return groupMatch || centerMatch;
+              }
+              return programMatch;
+            })
+            .map((course) => String(course.name)),
+        ),
+      );
+    };
+
+    const allowedCourseNames = await resolveAllowedCourseNames(group, program);
+
+    const matchesContext = (activity: (typeof activities)[number]) => {
+      if (studentId && activity.studentId) {
+        return activity.studentId === studentId;
+      }
+
+      if (moduleId && activity.moduleId && activity.moduleId !== moduleId) {
+        return false;
+      }
+      if (course && activity.course && activity.course !== course) {
+        return false;
+      }
+
+      if (course && activity.course === course) {
+        return true;
+      }
+      if (moduleId && activity.moduleId === moduleId) {
+        return true;
+      }
+      if (group || program) {
+        return Boolean(activity.course) && allowedCourseNames.includes(activity.course);
+      }
+
+      if (studentId && !activity.studentId) {
+        return false;
+      }
+
+      return true;
+    };
+
     if (teacherId) {
       activities = activities.filter((a) => a.teacherId === teacherId);
     }
-    if (studentId) {
-      activities = activities.filter((a) => a.studentId === studentId);
+    if (studentId || course || group || program || moduleId) {
+      activities = activities.filter(matchesContext);
     }
 
     res.json({
@@ -784,6 +897,10 @@ app.get('/api/activities', async (req, res, next) => {
         progress: a.progress,
         attachmentUrl: a.attachmentUrl,
         attachmentName: a.attachmentName,
+        studentSubmissionStatus: a.studentSubmissionStatus,
+        studentSubmissionText: a.studentSubmissionText,
+        studentSubmissionAttachmentUrl: a.studentSubmissionAttachmentUrl,
+        studentSubmissionAttachmentName: a.studentSubmissionAttachmentName,
         createdAt: a.createdAt,
         updatedAt: a.updatedAt,
       })),
@@ -795,19 +912,72 @@ app.get('/api/activities', async (req, res, next) => {
 
 app.post('/api/activities', async (req, res, next) => {
   try {
+    // Derive teacherId from module -> course -> group.programs mentor (preferred over manual assignment)
+    let teacherIdToUse: string | undefined = undefined;
+    if (req.body.moduleId) {
+      try {
+        const mod = await prisma.module.findUnique({ where: { id: String(req.body.moduleId) }, select: { id: true, courseId: true } });
+        if (mod?.courseId) {
+          const course = await prisma.course.findUnique({ where: { id: mod.courseId }, select: { id: true, name: true } });
+          const courseName = String(course?.name ?? '');
+          const parts = courseName.split(' - ');
+          const centerPart = parts[0]?.trim().toLowerCase() ?? '';
+          const programPart = parts[1]?.trim().toLowerCase() ?? '';
+
+          // load groups and inspect their programs JSON to find a mentor for this program + center
+          const allGroups = await prisma.group.findMany({ select: { id: true, name: true, programs: true, centerId: true } });
+          for (const g of allGroups) {
+            const gName = String(g.name ?? '').toLowerCase();
+            // quick center match: course name first part should match group's name first part
+            if (centerPart && !gName.includes(centerPart)) continue;
+            const programs = Array.isArray(g.programs) ? g.programs : [];
+            for (const p of programs) {
+              const prog = String(p?.program ?? '').toLowerCase();
+              const mentor = String(p?.mentor ?? '').trim();
+              if (prog && programPart && prog === programPart && mentor) {
+                const teacher = await prisma.teacher.findFirst({ where: { name: mentor } });
+                if (teacher) {
+                  teacherIdToUse = teacher.id;
+                  break;
+                }
+              }
+            }
+            if (teacherIdToUse) break;
+          }
+        }
+      } catch (err) {
+        // if resolution fails, continue and allow null teacherId
+        console.error('Failed to resolve teacher for activity:', err);
+      }
+    }
+
+    // If derivation failed, fall back to provided teacherId (if any)
+    if (!teacherIdToUse && req.body.teacherId) {
+      teacherIdToUse = req.body.teacherId;
+    }
+
+    const activityCount = await prisma.activity.count({
+      where: req.body.moduleId ? { moduleId: String(req.body.moduleId) } : {},
+    });
+    const titleToUse = sanitizeActivityTitle(req.body.title, activityCount + 1);
+
     const activity = await prisma.activity.create({
       data: {
-        title: req.body.title,
+        title: titleToUse,
         description: req.body.description,
         moduleId: req.body.moduleId,
         course: req.body.course,
         studentId: req.body.studentId,
-        teacherId: req.body.teacherId,
+        teacherId: teacherIdToUse ?? undefined,
         lesson: req.body.lesson,
         status: req.body.status,
         progress: req.body.progress,
         attachmentUrl: req.body.attachmentUrl,
         attachmentName: req.body.attachmentName,
+        studentSubmissionStatus: req.body.studentSubmissionStatus,
+        studentSubmissionText: req.body.studentSubmissionText,
+        studentSubmissionAttachmentUrl: req.body.studentSubmissionAttachmentUrl,
+        studentSubmissionAttachmentName: req.body.studentSubmissionAttachmentName,
       },
     });
     res.status(201).json({
@@ -825,6 +995,10 @@ app.post('/api/activities', async (req, res, next) => {
         progress: activity.progress,
         attachmentUrl: activity.attachmentUrl,
         attachmentName: activity.attachmentName,
+        studentSubmissionStatus: activity.studentSubmissionStatus,
+        studentSubmissionText: activity.studentSubmissionText,
+        studentSubmissionAttachmentUrl: activity.studentSubmissionAttachmentUrl,
+        studentSubmissionAttachmentName: activity.studentSubmissionAttachmentName,
         createdAt: activity.createdAt,
         updatedAt: activity.updatedAt,
       },
@@ -834,19 +1008,32 @@ app.post('/api/activities', async (req, res, next) => {
   }
 });
 
-app.put('/api/activities/:id', async (req, res, next) => {
+app.put('/api/activities/:id/submission', async (req, res, next) => {
   try {
+    const updateData: Record<string, unknown> = {};
+    const submissionFields = [
+      'studentSubmissionStatus',
+      'studentSubmissionText',
+      'studentSubmissionAttachmentUrl',
+      'studentSubmissionAttachmentName',
+    ] as const;
+
+    submissionFields.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ success: false, message: 'No se proporcionaron campos de envío válidos.' });
+      return;
+    }
+
     const activity = await prisma.activity.update({
       where: { id: req.params.id },
-      data: {
-        title: req.body.title,
-        description: req.body.description,
-        status: req.body.status,
-        progress: req.body.progress,
-        attachmentUrl: req.body.attachmentUrl,
-        attachmentName: req.body.attachmentName,
-      },
+      data: updateData,
     });
+
     res.json({
       success: true,
       data: {
@@ -862,6 +1049,74 @@ app.put('/api/activities/:id', async (req, res, next) => {
         progress: activity.progress,
         attachmentUrl: activity.attachmentUrl,
         attachmentName: activity.attachmentName,
+        studentSubmissionStatus: activity.studentSubmissionStatus,
+        studentSubmissionText: activity.studentSubmissionText,
+        studentSubmissionAttachmentUrl: activity.studentSubmissionAttachmentUrl,
+        studentSubmissionAttachmentName: activity.studentSubmissionAttachmentName,
+        createdAt: activity.createdAt,
+        updatedAt: activity.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/activities/:id', async (req, res, next) => {
+  try {
+    const updateData: Record<string, unknown> = {};
+    const updatableFields = [
+      'title',
+      'description',
+      'lesson',
+      'moduleId',
+      'course',
+      'studentId',
+      'status',
+      'progress',
+      'attachmentUrl',
+      'attachmentName',
+      'studentSubmissionStatus',
+      'studentSubmissionText',
+      'studentSubmissionAttachmentUrl',
+      'studentSubmissionAttachmentName',
+    ] as const;
+
+    updatableFields.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ success: false, message: 'No se proporcionaron campos actualizables válidos.' });
+      return;
+    }
+
+    const activity = await prisma.activity.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: activity.id,
+        title: activity.title,
+        description: activity.description,
+        moduleId: activity.moduleId,
+        course: activity.course,
+        studentId: activity.studentId,
+        teacherId: activity.teacherId,
+        lesson: activity.lesson,
+        status: activity.status,
+        progress: activity.progress,
+        attachmentUrl: activity.attachmentUrl,
+        attachmentName: activity.attachmentName,
+        studentSubmissionStatus: activity.studentSubmissionStatus,
+        studentSubmissionText: activity.studentSubmissionText,
+        studentSubmissionAttachmentUrl: activity.studentSubmissionAttachmentUrl,
+        studentSubmissionAttachmentName: activity.studentSubmissionAttachmentName,
         createdAt: activity.createdAt,
         updatedAt: activity.updatedAt,
       },
@@ -875,6 +1130,44 @@ app.delete('/api/activities/:id', async (req, res, next) => {
   try {
     await prisma.activity.delete({ where: { id: req.params.id } });
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin endpoint to sanitize all activity titles and descriptions (remove teacher names)
+app.post('/api/admin/sanitize-activities', async (req, res, next) => {
+  try {
+    const allActivities = await prisma.activity.findMany({});
+    let totalUpdated = 0;
+
+    for (let i = 0; i < allActivities.length; i++) {
+      const act = allActivities[i];
+      const sanitizedTitle = sanitizeActivityTitle(act.title, i + 1);
+      const sanitizedDesc = String(act.description ?? '')
+        .replace(/^(docente asignado al|asignación docente:?|asignaci\u00f3n docente:?)/gi, '')
+        .trim();
+
+      if (sanitizedTitle !== act.title || sanitizedDesc !== act.description) {
+        await prisma.activity.update({
+          where: { id: act.id },
+          data: {
+            title: sanitizedTitle,
+            description: sanitizedDesc,
+          },
+        });
+        totalUpdated++;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalProcessed: allActivities.length,
+        totalUpdated,
+        message: `${totalUpdated} actividades fueron sanitizadas`,
+      },
+    });
   } catch (error) {
     next(error);
   }

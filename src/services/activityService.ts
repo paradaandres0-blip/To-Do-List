@@ -20,8 +20,16 @@ export const getActivitiesByTeacherRequest = async (teacherId: string): Promise<
   return extractData(response);
 };
 
-export const getActivitiesByStudentRequest = async (studentId: string): Promise<Activity[]> => {
-  const response = await api.get<ApiResponse<Activity[]>>('/activities', { params: { studentId } });
+export const getActivitiesByStudentRequest = async (studentId: string, context?: { course?: string; group?: string; program?: string; moduleId?: string }): Promise<Activity[]> => {
+  const response = await api.get<ApiResponse<Activity[]>>('/activities', {
+    params: {
+      studentId,
+      course: context?.course,
+      group: context?.group,
+      program: context?.program,
+      moduleId: context?.moduleId,
+    },
+  });
   return extractData(response);
 };
 
@@ -32,6 +40,11 @@ export const createActivityRequest = async (payload: Omit<Activity, 'id' | 'crea
 
 export const updateActivityRequest = async (id: string, payload: Partial<Omit<Activity, 'id' | 'createdAt'>>): Promise<Activity> => {
   const response = await api.put<ApiResponse<Activity>>(`/activities/${id}`, payload);
+  return extractData(response);
+};
+
+export const updateActivitySubmissionRequest = async (id: string, payload: Pick<Activity, 'studentSubmissionStatus' | 'studentSubmissionText' | 'studentSubmissionAttachmentUrl' | 'studentSubmissionAttachmentName'>): Promise<Activity> => {
+  const response = await api.put<ApiResponse<Activity>>(`/activities/${id}/submission`, payload);
   return extractData(response);
 };
 

@@ -6,6 +6,7 @@ import {
   getActivitiesByStudentRequest,
   createActivityRequest,
   updateActivityRequest,
+  updateActivitySubmissionRequest,
   deleteActivityRequest,
 } from '../services/activityService';
 
@@ -16,7 +17,7 @@ interface ActivityState {
 
   loadActivities: () => Promise<void>;
   loadByTeacher: (teacherId: string) => Promise<void>;
-  loadByStudent: (studentId: string) => Promise<void>;
+  loadByStudent: (studentId: string, context?: { course?: string; group?: string; program?: string; moduleId?: string }) => Promise<void>;
   createActivity: (payload: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateActivity: (id: string, payload: Partial<Omit<Activity, 'id' | 'createdAt'>>) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
@@ -49,10 +50,10 @@ const useActivityStore = create<ActivityState>((set, get) => ({
     }
   },
 
-  loadByStudent: async (studentId: string) => {
+  loadByStudent: async (studentId, context) => {
     set({ isLoading: true, error: null });
     try {
-      const activities = await getActivitiesByStudentRequest(studentId);
+      const activities = await getActivitiesByStudentRequest(studentId, context);
       set({ activities, isLoading: false });
     } catch {
       set({ isLoading: false, error: 'Error al cargar actividades' });
@@ -74,8 +75,22 @@ const useActivityStore = create<ActivityState>((set, get) => ({
       set((state) => ({
         activities: state.activities.map((a) => (a.id === id ? updated : a)),
       }));
-    } catch {
+      return updated;
+    } catch (error) {
       set({ error: 'Error al actualizar actividad' });
+      throw error;
+    }
+  },
+  updateActivitySubmission: async (id, payload) => {
+    try {
+      const updated = await updateActivitySubmissionRequest(id, payload);
+      set((state) => ({
+        activities: state.activities.map((a) => (a.id === id ? updated : a)),
+      }));
+      return updated;
+    } catch (error) {
+      set({ error: 'Error al actualizar envío de actividad' });
+      throw error;
     }
   },
 

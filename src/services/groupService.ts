@@ -39,8 +39,9 @@ const normalizeGroup = (group: any): Group => ({
   updatedAt: group.updatedAt?.toISOString?.() ?? String(group.updatedAt ?? ''),
 });
 
-export const getGroupsRequest = async (): Promise<Group[]> => {
-  const response = await api.get<ApiResponse<Group[]>>('/groups');
+export const getGroupsRequest = async (opts?: { teacherId?: string }): Promise<Group[]> => {
+  const q = opts?.teacherId ? `?teacherId=${encodeURIComponent(opts.teacherId)}` : '';
+  const response = await api.get<ApiResponse<Group[]>>(`/groups${q}`);
   return extractData(response).map(normalizeGroup);
 };
 

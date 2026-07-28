@@ -13,6 +13,7 @@ import {
   deleteCourseRequest
 } from '../../services/courseService';
 import { getGroupsRequest } from '../../services/groupService';
+import useAuthStore from '../../store/authStore';
 import { getModulesRequest } from '../../services/moduleService';
 import useActivityStore from '../../store/activityStore';
 
@@ -45,14 +46,16 @@ export const Courses = () => {
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'groups' });
 
+  const user = useAuthStore((s) => s.user);
+
   // Cargar cursos al montar el componente
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const [coursesData, modulesData, groupsData] = await Promise.all([
           getCoursesRequest(),
-          getModulesRequest(),
-          getGroupsRequest(),
+          getModulesRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user.teacherId } : undefined),
+          getGroupsRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user.teacherId } : undefined),
         ]);
         setCourses(coursesData);
         setModules(modulesData);

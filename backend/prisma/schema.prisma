@@ -188,20 +188,24 @@ model ReportSession {
 }
 
 model Activity {
-  id             String   @id @default(cuid())
-  title          String
-  description    String?
-  moduleId       String?
-  course         String?
-  studentId      String?
-  teacherId      String?
-  lesson         String?
-  status         String   @default("PENDIENTE")
-  progress       Int      @default(0)
-  attachmentUrl  String?
-  attachmentName String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                             String   @id @default(cuid())
+  title                          String
+  description                    String?
+  moduleId                       String?
+  course                         String?
+  studentId                      String?
+  teacherId                      String?
+  lesson                         String?
+  status                         String   @default("PENDIENTE")
+  progress                       Int      @default(0)
+  attachmentUrl                  String?
+  attachmentName                 String?
+  studentSubmissionStatus       String?  @default("SIN_INICIAR")
+  studentSubmissionText         String?
+  studentSubmissionAttachmentUrl String?
+  studentSubmissionAttachmentName String?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
 
   @@map("activities")
 }

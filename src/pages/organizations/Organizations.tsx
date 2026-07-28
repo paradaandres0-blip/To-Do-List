@@ -66,7 +66,7 @@ export const Organizations = () => {
     try {
       const [centersResponse, groupsResponse, studentsResponse] = await Promise.all([
         getCentersRequest(),
-        getGroupsRequest(),
+        getGroupsRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user?.teacherId } : undefined),
         getStudentsRequest(1, 1000),
       ]);
 

@@ -4,6 +4,7 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { Modal } from '../../components/common/Modal/Modal';
 import { getCentersRequest } from '../../services/centerService';
 import { createGroupRequest, deleteGroupRequest, getGroupsRequest, updateGroupRequest } from '../../services/groupService';
+import useAuthStore from '../../store/authStore';
 import { getTeachersRequest } from '../../services/teacherService';
 import { getStudentsRequest } from '../../services/studentService';
 import type { Teacher } from '../../types/teacher.types';
@@ -102,9 +103,10 @@ export const Groups = () => {
 
   const loadData = async () => {
     try {
+      const user = useAuthStore.getState().user;
       const [centersResponse, groupsResponse, studentsResponse] = await Promise.all([
         getCentersRequest(),
-        getGroupsRequest(),
+        getGroupsRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user?.teacherId } : undefined),
         getStudentsRequest(1, 1000),
       ]);
 

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { studentSchema } from '../../schemas/student.schema';
 import { Pagination } from '../../components/common/Pagination/Pagination';
 import { getGroupsRequest } from '../../services/groupService';
+import useAuthStore from '../../store/authStore';
 import { getCentersRequest } from '../../services/centerService';
 import {
   createStudentRequest,
@@ -98,10 +99,15 @@ export const Students = () => {
     }
   }, [loadStudents, students.length]);
 
+  const user = useAuthStore((s) => s.user);
+
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [centersData, groupsData] = await Promise.all([getCentersRequest(), getGroupsRequest()]);
+        const [centersData, groupsData] = await Promise.all([
+          getCentersRequest(),
+          getGroupsRequest(user?.role === 'INSTRUCTOR' ? { teacherId: user?.teacherId } : undefined),
+        ]);
         setCenters(centersData ?? []);
         setGroups(groupsData ?? []);
       } catch (err) {
@@ -109,7 +115,7 @@ export const Students = () => {
       }
     };
     loadReferenceData();
-  }, []);
+  }, [user?.role, user?.teacherId]);
 
   const getUiStatus = (status: string) => (status === 'Activo' ? 'Activo' : 'Inactivo');
 

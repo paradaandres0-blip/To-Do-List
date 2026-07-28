@@ -15,7 +15,7 @@ const extractData = <T>(response: { data: unknown }): T => {
   return d as T;
 };
 
-export const getStudentsRequest = async (page = 1, pageSize = 50): Promise<PaginatedResponse<Student>> => {
+export const getStudentsRequest = async (page = 1, pageSize = 1000): Promise<PaginatedResponse<Student>> => {
   const response = await api.get<ApiResponse<PaginatedResponse<Student>> | PaginatedResponse<Student> | ApiResponse<Student[]>>('/students', { params: { page, pageSize } });
   const extracted = extractData<PaginatedResponse<Student> | Student[]>(response);
 
